@@ -148,7 +148,7 @@ final class LiveActivityController {
     private func shouldPushTenthUpdate() -> Bool {
         let totalTenths = Int((StopwatchEngine.shared.currentTimeMs() / 100.0).rounded(.down))
         let tenth = ((totalTenths % 10) + 10) % 10
-        guard [1, 2, 3, 5, 7, 9].contains(tenth) else { return false }
+        guard [1, 5, 6, 8].contains(tenth) else { return false }
         guard lastPushedTenthKey != totalTenths else { return false }
         lastPushedTenthKey = totalTenths
         return true
