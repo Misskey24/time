@@ -18,11 +18,13 @@ struct TimeLiveActivityWidget: Widget {
                 DynamicIslandExpandedRegion(.leading) {
                     Label("时间", systemImage: "clock")
                         .font(.caption.weight(.semibold))
+                        .foregroundStyle(.white)
                 }
 
                 DynamicIslandExpandedRegion(.trailing) {
                     Text(context.state.sourceName)
                         .font(.caption.weight(.semibold))
+                        .foregroundStyle(.white.opacity(0.82))
                         .lineLimit(1)
                 }
 
@@ -30,14 +32,16 @@ struct TimeLiveActivityWidget: Widget {
                     LiveClockText(
                         offsetSeconds: context.state.offsetSeconds,
                         showsSeconds: true,
-                        font: .system(size: 28, weight: .semibold, design: .monospaced)
+                        font: .system(size: 28, weight: .semibold, design: .monospaced),
+                        color: .white,
+                        minWidth: 138
                     )
                 }
 
                 DynamicIslandExpandedRegion(.bottom) {
                     Text("来自 \(context.state.sourceName) 校时")
                         .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.white.opacity(0.7))
                 }
             } compactLeading: {
                 Image(systemName: "clock")
@@ -46,12 +50,15 @@ struct TimeLiveActivityWidget: Widget {
                 LiveClockText(
                     offsetSeconds: context.state.offsetSeconds,
                     showsSeconds: false,
-                    font: .system(size: 13, weight: .semibold, design: .monospaced)
+                    font: .system(size: 13, weight: .semibold, design: .monospaced),
+                    color: .white,
+                    minWidth: 42
                 )
             } minimal: {
                 Image(systemName: "clock")
                     .foregroundStyle(.green)
             }
+            .keylineTint(.green)
         }
     }
 }
@@ -68,12 +75,14 @@ private struct LockScreenTimeView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("当前时间")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.white.opacity(0.68))
 
                 LiveClockText(
                     offsetSeconds: state.offsetSeconds,
                     showsSeconds: true,
-                    font: .system(size: 32, weight: .semibold, design: .monospaced)
+                    font: .system(size: 34, weight: .semibold, design: .monospaced),
+                    color: .white,
+                    minWidth: 168
                 )
             }
 
@@ -81,11 +90,13 @@ private struct LockScreenTimeView: View {
 
             Text(state.sourceName)
                 .font(.caption.weight(.semibold))
+                .foregroundStyle(.white)
                 .lineLimit(1)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
-                .background(.thinMaterial, in: Capsule())
+                .background(Color.white.opacity(0.16), in: Capsule())
         }
+        .foregroundStyle(.white)
         .padding(.horizontal, 18)
         .padding(.vertical, 14)
         .activityBackgroundTint(.black)
@@ -97,12 +108,16 @@ private struct LiveClockText: View {
     let offsetSeconds: TimeInterval
     let showsSeconds: Bool
     let font: Font
+    let color: Color
+    let minWidth: CGFloat
 
     var body: some View {
         TimelineView(.periodic(from: Date(), by: 1)) { timeline in
             Text(Self.format(timeline.date.addingTimeInterval(offsetSeconds), showsSeconds: showsSeconds))
                 .font(font)
+                .foregroundStyle(color)
                 .monospacedDigit()
+                .frame(minWidth: minWidth, alignment: .leading)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
         }
