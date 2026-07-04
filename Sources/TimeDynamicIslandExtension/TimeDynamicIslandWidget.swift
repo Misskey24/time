@@ -29,10 +29,11 @@ struct TimeLiveActivityWidget: Widget {
                 }
 
                 DynamicIslandExpandedRegion(.center) {
-                    LiveClockText(
-                        clockStartDate: context.state.clockStartDate,
-                        font: .system(size: 25, weight: .semibold, design: .monospaced),
-                        minWidth: 170,
+                    StaticClockText(
+                        timeText: context.state.timeText,
+                        showsSeconds: true,
+                        font: .system(size: 24, weight: .semibold, design: .monospaced),
+                        minWidth: 118,
                         alignment: .center
                     )
                 }
@@ -46,10 +47,11 @@ struct TimeLiveActivityWidget: Widget {
                 Image(systemName: "clock")
                     .foregroundStyle(.green)
             } compactTrailing: {
-                LiveClockText(
-                    clockStartDate: context.state.clockStartDate,
-                    font: .system(size: 12, weight: .semibold, design: .monospaced),
-                    minWidth: 86,
+                StaticClockText(
+                    timeText: context.state.timeText,
+                    showsSeconds: false,
+                    font: .system(size: 13, weight: .semibold, design: .monospaced),
+                    minWidth: 46,
                     alignment: .trailing
                 )
             } minimal: {
@@ -75,10 +77,11 @@ private struct LockScreenTimeView: View {
                     .font(.caption)
                     .foregroundStyle(.white.opacity(0.68))
 
-                LiveClockText(
-                    clockStartDate: state.clockStartDate,
-                    font: .system(size: 32, weight: .semibold, design: .monospaced),
-                    minWidth: 212,
+                StaticClockText(
+                    timeText: state.timeText,
+                    showsSeconds: true,
+                    font: .system(size: 34, weight: .semibold, design: .monospaced),
+                    minWidth: 158,
                     alignment: .leading
                 )
             }
@@ -101,19 +104,26 @@ private struct LockScreenTimeView: View {
     }
 }
 
-private struct LiveClockText: View {
-    let clockStartDate: Date
+private struct StaticClockText: View {
+    let timeText: String
+    let showsSeconds: Bool
     let font: Font
     let minWidth: CGFloat
     let alignment: Alignment
 
     var body: some View {
-        Text(timerInterval: clockStartDate...Date.distantFuture, countsDown: false, showsHours: true)
+        Text(displayText)
             .font(font)
+            .foregroundStyle(.white)
             .monospacedDigit()
             .fixedSize(horizontal: true, vertical: false)
             .frame(minWidth: minWidth, alignment: alignment)
             .lineLimit(1)
-            .minimumScaleFactor(0.65)
+            .minimumScaleFactor(0.75)
+    }
+
+    private var displayText: String {
+        let maxLength = showsSeconds ? 8 : 5
+        return String(timeText.prefix(maxLength))
     }
 }
