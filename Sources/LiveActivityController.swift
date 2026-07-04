@@ -97,7 +97,7 @@ final class LiveActivityController {
     @available(iOS 16.1, *)
     private func makeContentState() -> TimeLiveActivityAttributes.ContentState {
         let offsetSeconds = StopwatchEngine.shared.currentOffsetSeconds()
-        TimeLiveActivityAttributes.ContentState(
+        return TimeLiveActivityAttributes.ContentState(
             sourceName: StopwatchEngine.shared.source.rawValue,
             offsetSeconds: offsetSeconds,
             clockStartDate: Self.clockStartDate(offsetSeconds: offsetSeconds),
