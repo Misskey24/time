@@ -29,11 +29,11 @@ struct TimeLiveActivityWidget: Widget {
                 }
 
                 DynamicIslandExpandedRegion(.center) {
-                    TimerClockText(
-                        clockStartDate: context.state.clockStartDate,
-                        font: .system(size: 28, weight: .semibold, design: .monospaced),
-                        color: .white,
-                        minWidth: 138
+                    ColoredTimeText(
+                        timeText: context.state.timeText,
+                        font: .system(size: 25, weight: .semibold, design: .monospaced),
+                        minWidth: 142,
+                        alignment: .center
                     )
                 }
 
@@ -46,11 +46,11 @@ struct TimeLiveActivityWidget: Widget {
                 Image(systemName: "clock")
                     .foregroundStyle(.green)
             } compactTrailing: {
-                TimerClockText(
-                    clockStartDate: context.state.clockStartDate,
-                    font: .system(size: 11, weight: .semibold, design: .monospaced),
-                    color: .white,
-                    minWidth: 52
+                ColoredTimeText(
+                    timeText: context.state.timeText,
+                    font: .system(size: 10, weight: .semibold, design: .monospaced),
+                    minWidth: 62,
+                    alignment: .trailing
                 )
             } minimal: {
                 Image(systemName: "clock")
@@ -75,11 +75,11 @@ private struct LockScreenTimeView: View {
                     .font(.caption)
                     .foregroundStyle(.white.opacity(0.68))
 
-                TimerClockText(
-                    clockStartDate: state.clockStartDate,
-                    font: .system(size: 34, weight: .semibold, design: .monospaced),
-                    color: .white,
-                    minWidth: 168
+                ColoredTimeText(
+                    timeText: state.timeText,
+                    font: .system(size: 32, weight: .semibold, design: .monospaced),
+                    minWidth: 186,
+                    alignment: .leading
                 )
             }
 
@@ -101,23 +101,24 @@ private struct LockScreenTimeView: View {
     }
 }
 
-private struct TimerClockText: View {
-    let clockStartDate: Date
+private struct ColoredTimeText: View {
+    let timeText: String
     let font: Font
-    let color: Color
     let minWidth: CGFloat
+    let alignment: Alignment
 
     var body: some View {
-        Text(
-            timerInterval: clockStartDate...clockStartDate.addingTimeInterval(24 * 60 * 60),
-            countsDown: false,
-            showsHours: true
-        )
-        .font(font)
-        .foregroundStyle(color)
-        .monospacedDigit()
-        .frame(minWidth: minWidth, alignment: .leading)
-        .lineLimit(1)
-        .minimumScaleFactor(0.45)
+        coloredText
+            .font(font)
+            .monospacedDigit()
+            .frame(minWidth: minWidth, alignment: alignment)
+            .lineLimit(1)
+            .minimumScaleFactor(0.35)
+    }
+
+    private var coloredText: Text {
+        guard let last = timeText.last else { return Text("") }
+        let body = String(timeText.dropLast())
+        return Text(body).foregroundColor(.white) + Text(String(last)).foregroundColor(.red)
     }
 }

@@ -8,6 +8,7 @@ final class LiveActivityController {
     var onStatus: ((String) -> Void)?
 
     private let enabledKey = "showDynamicIslandTime"
+    private var refreshTimer: Timer?
 
     private init() {}
 
@@ -52,9 +53,11 @@ final class LiveActivityController {
         Task { @MainActor in
             await startOrRefreshActivity()
         }
+        startRefreshTimer()
     }
 
     func end() {
+        stopRefreshTimer()
         guard #available(iOS 16.1, *) else { return }
 
         Task { @MainActor in
@@ -99,10 +102,35 @@ final class LiveActivityController {
         let offsetSeconds = StopwatchEngine.shared.currentOffsetSeconds()
         return TimeLiveActivityAttributes.ContentState(
             sourceName: StopwatchEngine.shared.source.rawValue,
+            timeText: StopwatchEngine.shared.formattedTime(),
             offsetSeconds: offsetSeconds,
             clockStartDate: Self.clockStartDate(offsetSeconds: offsetSeconds),
             updatedAt: Date()
         )
+    }
+
+    private func startRefreshTimer() {
+        guard refreshTimer == nil else { return }
+        let timer = Timer(timeInterval: 0.1, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                guard let self, self.isEnabled else { return }
+                guard #available(iOS 16.1, *) else { return }
+                await self.updateRunningActivity()
+            }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        refreshTimer = timer
+    }
+
+    private func stopRefreshTimer() {
+        refreshTimer?.invalidate()
+        refreshTimer = nil
+    }
+
+    @available(iOS 16.1, *)
+    private func updateRunningActivity() async {
+        guard let activity = Activity<TimeLiveActivityAttributes>.activities.first else { return }
+        await activity.update(using: makeContentState())
     }
 
     private static func clockStartDate(offsetSeconds: TimeInterval) -> Date {

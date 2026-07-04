@@ -5,6 +5,7 @@ import Foundation
 struct TimeLiveActivityAttributes: ActivityAttributes {
     struct ContentState: Codable, Hashable {
         var sourceName: String
+        var timeText: String
         var offsetSeconds: TimeInterval
         var clockStartDate: Date
         var updatedAt: Date
