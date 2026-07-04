@@ -30,9 +30,10 @@ struct TimeLiveActivityWidget: Widget {
 
                 DynamicIslandExpandedRegion(.center) {
                     IslandClockText(
+                        clockStartDate: context.state.clockStartDate,
                         timeText: context.state.timeText,
-                        font: .system(size: 24, weight: .semibold, design: .monospaced),
-                        minWidth: 122,
+                        font: .system(size: 22, weight: .semibold, design: .monospaced),
+                        width: 126,
                         alignment: .center
                     )
                 }
@@ -47,9 +48,10 @@ struct TimeLiveActivityWidget: Widget {
                     .foregroundStyle(.green)
             } compactTrailing: {
                 IslandClockText(
+                    clockStartDate: context.state.clockStartDate,
                     timeText: context.state.timeText,
-                    font: .system(size: 15, weight: .semibold, design: .monospaced),
-                    minWidth: 92,
+                    font: .system(size: 13, weight: .semibold, design: .monospaced),
+                    width: 82,
                     alignment: .trailing
                 )
             } minimal: {
@@ -76,9 +78,10 @@ private struct LockScreenTimeView: View {
                     .foregroundStyle(.white.opacity(0.68))
 
                 IslandClockText(
+                    clockStartDate: state.clockStartDate,
                     timeText: state.timeText,
-                    font: .system(size: 34, weight: .semibold, design: .monospaced),
-                    minWidth: 178,
+                    font: .system(size: 32, weight: .semibold, design: .monospaced),
+                    width: 186,
                     alignment: .leading
                 )
             }
@@ -102,38 +105,31 @@ private struct LockScreenTimeView: View {
 }
 
 private struct IslandClockText: View {
+    let clockStartDate: Date
     let timeText: String
     let font: Font
-    let minWidth: CGFloat
+    let width: CGFloat
     let alignment: Alignment
 
     var body: some View {
-        coloredText
+        clockText
             .font(font)
             .monospacedDigit()
-            .fixedSize(horizontal: true, vertical: false)
-            .frame(minWidth: minWidth, alignment: alignment)
             .lineLimit(1)
-            .minimumScaleFactor(0.75)
+            .minimumScaleFactor(0.68)
+            .frame(width: width, alignment: alignment)
     }
 
-    private var coloredText: Text {
-        let value = displayParts
-        let body = Text(value.body).foregroundColor(.white)
-        guard let tenth = value.tenth else { return body }
-        return body + Text(tenth).foregroundColor(Color(red: 1.0, green: 0.25, blue: 0.18))
+    private var clockText: Text {
+        Text(timerInterval: clockStartDate...Date.distantFuture, countsDown: false, showsHours: true)
+            .foregroundColor(.white)
+        + Text(".").foregroundColor(.white)
+        + Text(tenthText).foregroundColor(Color(red: 1.0, green: 0.25, blue: 0.18))
     }
 
-    private var displayParts: (body: String, tenth: String?) {
-        let components = timeText.split(separator: ":", omittingEmptySubsequences: false).map(String.init)
-        guard components.count >= 3 else { return (timeText, nil) }
-
-        let hour = String(Int(components[0]) ?? 0)
-        let minute = components[1]
-        let second = components[2]
-        guard components.count >= 4, let tenth = components[3].first else {
-            return ("\(hour):\(minute):\(second)", nil)
-        }
-        return ("\(hour):\(minute):\(second).", String(tenth))
+    private var tenthText: String {
+        let components = timeText.split(separator: ":", omittingEmptySubsequences: false)
+        guard components.count >= 4, let tenth = components[3].first else { return "0" }
+        return String(tenth)
     }
 }
