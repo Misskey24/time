@@ -16,7 +16,7 @@ struct TimeLiveActivityWidget: Widget {
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
-                    Label("??", systemImage: "clock")
+                    Label("时间", systemImage: "clock")
                         .font(.caption.weight(.semibold))
                 }
 
@@ -35,7 +35,7 @@ struct TimeLiveActivityWidget: Widget {
                 }
 
                 DynamicIslandExpandedRegion(.bottom) {
-                    Text("?? \(context.state.sourceName) ??")
+                    Text("来自 \(context.state.sourceName) 校时")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
@@ -66,7 +66,7 @@ private struct LockScreenTimeView: View {
                 .foregroundStyle(.green)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("????")
+                Text("当前时间")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 

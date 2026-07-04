@@ -38,13 +38,13 @@ final class LiveActivityController {
 
     func startOrRefresh() {
         guard #available(iOS 16.1, *) else {
-            onStatus?("??????? iOS 16.1 ??????")
+            onStatus?("灵动岛时间需要 iOS 16.1 或更高版本。")
             isEnabled = false
             return
         }
 
         guard ActivityAuthorizationInfo().areActivitiesEnabled else {
-            onStatus?("??????????????????????")
+            onStatus?("系统没有允许实时活动，请在设置里开启后再试。")
             isEnabled = false
             return
         }
@@ -68,7 +68,7 @@ final class LiveActivityController {
         for activity in Activity<TimeLiveActivityAttributes>.activities {
             await activity.end(using: state, dismissalPolicy: .immediate)
         }
-        onStatus?("?????????")
+        onStatus?("灵动岛时间已关闭。")
     }
 
     @available(iOS 16.1, *)
@@ -77,19 +77,19 @@ final class LiveActivityController {
 
         if let activity = Activity<TimeLiveActivityAttributes>.activities.first {
             await activity.update(using: state)
-            onStatus?("?????????")
+            onStatus?("灵动岛时间已更新。")
             return
         }
 
         do {
             _ = try Activity<TimeLiveActivityAttributes>.request(
-                attributes: TimeLiveActivityAttributes(title: "??"),
+                attributes: TimeLiveActivityAttributes(title: "时间"),
                 contentState: state,
                 pushType: nil
             )
-            onStatus?("?????????????????????")
+            onStatus?("灵动岛时间已开启，锁屏或进入后台后可查看。")
         } catch {
-            onStatus?("????????\(error.localizedDescription)")
+            onStatus?("灵动岛启动失败：\(error.localizedDescription)")
             isEnabled = false
         }
     }

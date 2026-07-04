@@ -1,9 +1,9 @@
 import Foundation
 
 enum TimeSource: String, CaseIterable {
-    case local   = "??"
-    case taobao  = "??"
-    case qqMusic = "QQ??"
+    case local   = "本地"
+    case taobao  = "淘宝"
+    case qqMusic = "QQ音乐"
 }
 
 final class StopwatchEngine {
