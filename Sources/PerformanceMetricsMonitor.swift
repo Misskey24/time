@@ -51,6 +51,14 @@ struct PerformanceMetricsSnapshot {
 
     private static func formatRefreshRate(_ value: Double) -> String {
         guard value > 0 else { return "-- Hz" }
+
+        if (57...63).contains(value) {
+            return "60 Hz"
+        }
+        if (115...125).contains(value) {
+            return "120 Hz"
+        }
+
         return String(format: "%.0f Hz", value)
     }
 }
@@ -68,14 +76,15 @@ final class PerformanceMetricsMonitor: NSObject {
     private var latencyRequestInFlight = false
     private var lastCounters: NetworkCounters?
     private var lastCounterDate: Date?
-    private var frameCount = 0
     private var lastFrameSampleTime: CFTimeInterval = 0
+    private var frameIntervals: [CFTimeInterval] = []
+    private let frameSampleWindow: CFTimeInterval = 0.25
 
     private(set) var snapshot = PerformanceMetricsSnapshot(
         latencyMs: nil,
         downloadBytesPerSecond: 0,
         uploadBytesPerSecond: 0,
-        refreshRate: Double(min(60, max(30, UIScreen.main.maximumFramesPerSecond)))
+        refreshRate: Double(max(30, UIScreen.main.maximumFramesPerSecond))
     )
 
     private override init() {
@@ -119,7 +128,7 @@ final class PerformanceMetricsMonitor: NSObject {
     }
 
     static var maximumSupportedFrameRate: Int {
-        min(60, max(30, UIScreen.main.maximumFramesPerSecond))
+        max(30, UIScreen.main.maximumFramesPerSecond)
     }
 
     func recordRenderedFrame(at timestamp: CFTimeInterval) {
@@ -128,13 +137,18 @@ final class PerformanceMetricsMonitor: NSObject {
             return
         }
 
-        frameCount += 1
-        let elapsed = timestamp - lastFrameSampleTime
-        guard elapsed >= 1 else { return }
-
-        let measured = Double(frameCount) / elapsed
-        frameCount = 0
+        let interval = timestamp - lastFrameSampleTime
         lastFrameSampleTime = timestamp
+        guard interval > 0, interval < 1 else { return }
+
+        frameIntervals.append(interval)
+        var total = frameIntervals.reduce(0, +)
+        while total > frameSampleWindow, frameIntervals.count > 1 {
+            total -= frameIntervals.removeFirst()
+        }
+
+        guard total > 0 else { return }
+        let measured = Double(frameIntervals.count) / total
 
         snapshot = PerformanceMetricsSnapshot(
             latencyMs: snapshot.latencyMs,
