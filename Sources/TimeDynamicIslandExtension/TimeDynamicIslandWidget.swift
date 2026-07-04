@@ -109,7 +109,7 @@ private struct TimerClockText: View {
 
     var body: some View {
         Text(
-            timerInterval: DateInterval(start: clockStartDate, end: clockStartDate.addingTimeInterval(24 * 60 * 60)),
+            timerInterval: clockStartDate...clockStartDate.addingTimeInterval(24 * 60 * 60),
             countsDown: false,
             showsHours: true
         )
