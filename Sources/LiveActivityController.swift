@@ -96,10 +96,20 @@ final class LiveActivityController {
 
     @available(iOS 16.1, *)
     private func makeContentState() -> TimeLiveActivityAttributes.ContentState {
+        let offsetSeconds = StopwatchEngine.shared.currentOffsetSeconds()
         TimeLiveActivityAttributes.ContentState(
             sourceName: StopwatchEngine.shared.source.rawValue,
-            offsetSeconds: StopwatchEngine.shared.currentOffsetSeconds(),
+            offsetSeconds: offsetSeconds,
+            clockStartDate: Self.clockStartDate(offsetSeconds: offsetSeconds),
             updatedAt: Date()
         )
+    }
+
+    private static func clockStartDate(offsetSeconds: TimeInterval) -> Date {
+        let adjustedNow = Date().addingTimeInterval(offsetSeconds)
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .current
+        let adjustedStartOfDay = calendar.startOfDay(for: adjustedNow)
+        return adjustedStartOfDay.addingTimeInterval(-offsetSeconds)
     }
 }

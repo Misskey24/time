@@ -29,9 +29,8 @@ struct TimeLiveActivityWidget: Widget {
                 }
 
                 DynamicIslandExpandedRegion(.center) {
-                    LiveClockText(
-                        offsetSeconds: context.state.offsetSeconds,
-                        showsSeconds: true,
+                    TimerClockText(
+                        clockStartDate: context.state.clockStartDate,
                         font: .system(size: 28, weight: .semibold, design: .monospaced),
                         color: .white,
                         minWidth: 138
@@ -47,12 +46,11 @@ struct TimeLiveActivityWidget: Widget {
                 Image(systemName: "clock")
                     .foregroundStyle(.green)
             } compactTrailing: {
-                LiveClockText(
-                    offsetSeconds: context.state.offsetSeconds,
-                    showsSeconds: false,
-                    font: .system(size: 13, weight: .semibold, design: .monospaced),
+                TimerClockText(
+                    clockStartDate: context.state.clockStartDate,
+                    font: .system(size: 11, weight: .semibold, design: .monospaced),
                     color: .white,
-                    minWidth: 42
+                    minWidth: 52
                 )
             } minimal: {
                 Image(systemName: "clock")
@@ -77,9 +75,8 @@ private struct LockScreenTimeView: View {
                     .font(.caption)
                     .foregroundStyle(.white.opacity(0.68))
 
-                LiveClockText(
-                    offsetSeconds: state.offsetSeconds,
-                    showsSeconds: true,
+                TimerClockText(
+                    clockStartDate: state.clockStartDate,
                     font: .system(size: 34, weight: .semibold, design: .monospaced),
                     color: .white,
                     minWidth: 168
@@ -104,32 +101,23 @@ private struct LockScreenTimeView: View {
     }
 }
 
-private struct LiveClockText: View {
-    let offsetSeconds: TimeInterval
-    let showsSeconds: Bool
+private struct TimerClockText: View {
+    let clockStartDate: Date
     let font: Font
     let color: Color
     let minWidth: CGFloat
 
     var body: some View {
-        TimelineView(.periodic(from: Date(), by: 1)) { timeline in
-            Text(Self.format(timeline.date.addingTimeInterval(offsetSeconds), showsSeconds: showsSeconds))
-                .font(font)
-                .foregroundStyle(color)
-                .monospacedDigit()
-                .frame(minWidth: minWidth, alignment: .leading)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-        }
-    }
-
-    private static func format(_ date: Date, showsSeconds: Bool) -> String {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = .current
-        let components = calendar.dateComponents([.hour, .minute, .second], from: date)
-        if showsSeconds {
-            return String(format: "%02d:%02d:%02d", components.hour ?? 0, components.minute ?? 0, components.second ?? 0)
-        }
-        return String(format: "%02d:%02d", components.hour ?? 0, components.minute ?? 0)
+        Text(
+            timerInterval: DateInterval(start: clockStartDate, end: clockStartDate.addingTimeInterval(24 * 60 * 60)),
+            countsDown: false,
+            showsHours: true
+        )
+        .font(font)
+        .foregroundStyle(color)
+        .monospacedDigit()
+        .frame(minWidth: minWidth, alignment: .leading)
+        .lineLimit(1)
+        .minimumScaleFactor(0.45)
     }
 }
