@@ -14,6 +14,7 @@ final class StopwatchEngine {
     }
     private var offsetMs: Double = 0
     private(set) var lastSyncedAt: Date?
+    private var autoResyncTimer: Timer?
 
     private init() {
         if let raw = UserDefaults.standard.string(forKey: "timeSource"),
@@ -22,14 +23,18 @@ final class StopwatchEngine {
         } else {
             source = .local
         }
+        startAutoResync()
     }
 
     func setSource(_ s: TimeSource, completion: ((Bool) -> Void)? = nil) {
+        let sourceChanged = source != s
         source = s
+        if sourceChanged {
+            PerformanceMetricsMonitor.shared.resetLatencySamples(for: s)
+        }
         if s == .local {
             offsetMs = 0
             lastSyncedAt = Date()
-            PerformanceMetricsMonitor.shared.updateLatency(ms: 0)
             completion?(true)
             return
         }
@@ -39,7 +44,6 @@ final class StopwatchEngine {
                 let localMs = Date().timeIntervalSince1970 * 1000
                 self.offsetMs = result.timestampMs - localMs
                 self.lastSyncedAt = Date()
-                PerformanceMetricsMonitor.shared.updateLatency(ms: result.latencyMs)
                 completion?(true)
             } else {
                 completion?(false)
@@ -67,5 +71,15 @@ final class StopwatchEngine {
                       comps.minute ?? 0,
                       comps.second ?? 0,
                       tenths)
+    }
+
+    private func startAutoResync() {
+        autoResyncTimer?.invalidate()
+        let timer = Timer(timeInterval: 300, repeats: true) { [weak self] _ in
+            guard let self, self.source != .local else { return }
+            self.resync()
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        autoResyncTimer = timer
     }
 }

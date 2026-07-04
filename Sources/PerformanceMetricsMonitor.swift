@@ -9,6 +9,13 @@ struct PerformanceMetricsSnapshot {
     let uploadBytesPerSecond: Double
     let refreshRate: Double
 
+    enum LatencyLevel {
+        case unknown
+        case good
+        case warning
+        case bad
+    }
+
     var displayLine: String {
         "延迟 \(Self.formatLatency(latencyMs))  下行 \(Self.formatBytes(downloadBytesPerSecond))  上行 \(Self.formatBytes(uploadBytesPerSecond))  \(Self.formatRefreshRate(refreshRate))"
     }
@@ -31,6 +38,13 @@ struct PerformanceMetricsSnapshot {
 
     var refreshRateText: String {
         Self.formatRefreshRate(refreshRate)
+    }
+
+    var latencyLevel: LatencyLevel {
+        guard let latencyMs else { return .unknown }
+        if latencyMs >= 100 { return .bad }
+        if latencyMs >= 50 { return .warning }
+        return .good
     }
 
     private static func formatLatency(_ value: Double?) -> String {
@@ -74,11 +88,16 @@ final class PerformanceMetricsMonitor: NSObject {
     private var timer: Timer?
     private var latencyTimer: Timer?
     private var latencyRequestInFlight = false
+    private var latencyProbeWarmed = false
+    private var latencySamples: [Double] = []
+    private var latencySource: TimeSource?
     private var lastCounters: NetworkCounters?
     private var lastCounterDate: Date?
     private var lastFrameSampleTime: CFTimeInterval = 0
     private var frameIntervals: [CFTimeInterval] = []
     private let frameSampleWindow: CFTimeInterval = 0.25
+    private let maxLatencySamples = 5
+    private let maxBytesPerSecond: Double = 1024 * 1024 * 1024
 
     private(set) var snapshot = PerformanceMetricsSnapshot(
         latencyMs: nil,
@@ -125,6 +144,13 @@ final class PerformanceMetricsMonitor: NSObject {
             uploadBytesPerSecond: snapshot.uploadBytesPerSecond,
             refreshRate: snapshot.refreshRate
         )
+    }
+
+    func resetLatencySamples(for source: TimeSource) {
+        latencySource = source
+        latencyProbeWarmed = source == .local
+        latencySamples.removeAll()
+        updateLatency(ms: source == .local ? 0 : nil)
     }
 
     static var maximumSupportedFrameRate: Int {
@@ -176,11 +202,18 @@ final class PerformanceMetricsMonitor: NSObject {
 
         let receivedDelta = counters.received >= previous.received ? counters.received - previous.received : 0
         let sentDelta = counters.sent >= previous.sent ? counters.sent - previous.sent : 0
+        let downloadBytesPerSecond = Double(receivedDelta) / interval
+        let uploadBytesPerSecond = Double(sentDelta) / interval
+
+        guard downloadBytesPerSecond <= maxBytesPerSecond,
+              uploadBytesPerSecond <= maxBytesPerSecond else {
+            return
+        }
 
         snapshot = PerformanceMetricsSnapshot(
             latencyMs: snapshot.latencyMs,
-            downloadBytesPerSecond: Double(receivedDelta) / interval,
-            uploadBytesPerSecond: Double(sentDelta) / interval,
+            downloadBytesPerSecond: downloadBytesPerSecond,
+            uploadBytesPerSecond: uploadBytesPerSecond,
             refreshRate: snapshot.refreshRate
         )
     }
@@ -218,7 +251,12 @@ final class PerformanceMetricsMonitor: NSObject {
 
     @objc private func sampleLatency() {
         guard !latencyRequestInFlight else { return }
-        guard let url = Self.latencyProbeURL(for: StopwatchEngine.shared.source) else {
+        let source = StopwatchEngine.shared.source
+        if latencySource != source {
+            resetLatencySamples(for: source)
+        }
+
+        guard let url = Self.latencyProbeURL(for: source) else {
             updateLatency(ms: 0)
             return
         }
@@ -235,11 +273,27 @@ final class PerformanceMetricsMonitor: NSObject {
             DispatchQueue.main.async {
                 guard let self else { return }
                 self.latencyRequestInFlight = false
+                guard self.latencySource == source else { return }
                 if error == nil, response != nil {
-                    self.updateLatency(ms: latencyMs)
+                    self.recordLatencySample(latencyMs)
                 }
             }
         }.resume()
+    }
+
+    private func recordLatencySample(_ latencyMs: Double) {
+        if !latencyProbeWarmed {
+            latencyProbeWarmed = true
+            return
+        }
+
+        latencySamples.append(latencyMs)
+        if latencySamples.count > maxLatencySamples {
+            latencySamples.removeFirst(latencySamples.count - maxLatencySamples)
+        }
+
+        let average = latencySamples.reduce(0, +) / Double(latencySamples.count)
+        updateLatency(ms: average)
     }
 
     private static func latencyProbeURL(for source: TimeSource) -> URL? {

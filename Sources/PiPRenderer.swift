@@ -257,6 +257,10 @@ final class PiPRenderer: NSObject {
             .font: UIFont.systemFont(ofSize: 42, weight: .regular),
             .foregroundColor: secondaryColor
         ]
+        let latencyAttrs: [NSAttributedString.Key: Any] = [
+            .font: UIFont.systemFont(ofSize: 42, weight: .regular),
+            .foregroundColor: Self.latencyColor(for: snapshot.latencyLevel)
+        ]
         let timeAttrs: [NSAttributedString.Key: Any] = [
             .font: UIFont.monospacedDigitSystemFont(ofSize: 110, weight: .regular),
             .foregroundColor: UIColor.white
@@ -269,14 +273,18 @@ final class PiPRenderer: NSObject {
             .font: UIFont.monospacedDigitSystemFont(ofSize: 46, weight: .regular),
             .foregroundColor: secondaryColor
         ]
-        let speedAttrs: [NSAttributedString.Key: Any] = [
+        let uploadSpeedAttrs: [NSAttributedString.Key: Any] = [
             .font: UIFont.monospacedDigitSystemFont(ofSize: 34, weight: .regular),
-            .foregroundColor: secondaryColor
+            .foregroundColor: Self.speedColor(for: snapshot.uploadBytesPerSecond, inactiveColor: secondaryColor)
+        ]
+        let downloadSpeedAttrs: [NSAttributedString.Key: Any] = [
+            .font: UIFont.monospacedDigitSystemFont(ofSize: 34, weight: .regular),
+            .foregroundColor: Self.speedColor(for: snapshot.downloadBytesPerSecond, inactiveColor: secondaryColor)
         ]
 
         let horizontalPadding: CGFloat = 38
         let latencyNS = snapshot.latencyText.replacingOccurrences(of: " ", with: "") as NSString
-        latencyNS.draw(at: CGPoint(x: horizontalPadding, y: 30), withAttributes: topAttrs)
+        latencyNS.draw(at: CGPoint(x: horizontalPadding, y: 30), withAttributes: latencyAttrs)
 
         let sourceNS = source as NSString
         let sourceSize = sourceNS.size(withAttributes: topAttrs)
@@ -306,8 +314,8 @@ final class PiPRenderer: NSObject {
         let refreshNS = snapshot.refreshRateText.replacingOccurrences(of: " ", with: "") as NSString
         refreshNS.draw(at: CGPoint(x: horizontalPadding, y: 295), withAttributes: refreshAttrs)
 
-        drawRightAligned("↑ \(Self.formatPiPSpeed(snapshot.uploadBytesPerSecond))", y: 280, rightPadding: horizontalPadding, attributes: speedAttrs)
-        drawRightAligned("↓ \(Self.formatPiPSpeed(snapshot.downloadBytesPerSecond))", y: 329, rightPadding: horizontalPadding, attributes: speedAttrs)
+        drawRightAligned("↑ \(Self.formatPiPSpeed(snapshot.uploadBytesPerSecond))", y: 280, rightPadding: horizontalPadding, attributes: uploadSpeedAttrs)
+        drawRightAligned("↓ \(Self.formatPiPSpeed(snapshot.downloadBytesPerSecond))", y: 329, rightPadding: horizontalPadding, attributes: downloadSpeedAttrs)
 
         return pixelBuffer
     }
@@ -337,6 +345,21 @@ final class PiPRenderer: NSObject {
             return String(format: "%.1f MB/s", bytes / 1024 / 1024)
         }
         return String(format: "%.0f KB/s", bytes / 1024)
+    }
+
+    private static func latencyColor(for level: PerformanceMetricsSnapshot.LatencyLevel) -> UIColor {
+        switch level {
+        case .unknown, .good:
+            return UIColor(red: 0.82, green: 0.86, blue: 0.92, alpha: 1.0)
+        case .warning:
+            return UIColor(red: 1.0, green: 0.82, blue: 0.25, alpha: 1.0)
+        case .bad:
+            return UIColor(red: 1.0, green: 0.25, blue: 0.18, alpha: 1.0)
+        }
+    }
+
+    private static func speedColor(for bytesPerSecond: Double, inactiveColor: UIColor) -> UIColor {
+        bytesPerSecond >= 1024 ? UIColor.white : inactiveColor
     }
 }
 
