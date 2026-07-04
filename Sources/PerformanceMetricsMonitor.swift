@@ -1,6 +1,7 @@
 import Foundation
 import UIKit
 import QuartzCore
+import Network
 import Darwin
 
 struct PerformanceMetricsSnapshot {
@@ -88,6 +89,7 @@ final class PerformanceMetricsMonitor: NSObject {
     private var timer: Timer?
     private var latencyTimer: Timer?
     private var latencyRequestInFlight = false
+    private var latencyConnection: NWConnection?
     private var latencyProbeWarmed = false
     private var latencySamples: [Double] = []
     private var latencySource: TimeSource?
@@ -264,29 +266,45 @@ final class PerformanceMetricsMonitor: NSObject {
             resetLatencySamples(for: source)
         }
 
-        guard let url = Self.latencyProbeURL(for: source) else {
+        guard let endpoint = Self.latencyProbeEndpoint(for: source) else {
             updateLatency(ms: 0)
             return
         }
 
         latencyRequestInFlight = true
-        var request = URLRequest(url: url, timeoutInterval: 3)
-        request.httpMethod = "HEAD"
-        request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
-        request.setValue("Mozilla/5.0", forHTTPHeaderField: "User-Agent")
-
         let startedAt = CACurrentMediaTime()
-        URLSession.shared.dataTask(with: request) { [weak self] _, response, error in
-            let latencyMs = (CACurrentMediaTime() - startedAt) * 1000
-            DispatchQueue.main.async {
-                guard let self else { return }
-                self.latencyRequestInFlight = false
-                guard self.latencySource == source else { return }
-                if error == nil, response != nil {
+
+        let connection = NWConnection(
+            host: NWEndpoint.Host(endpoint.host),
+            port: NWEndpoint.Port(rawValue: endpoint.port) ?? 443,
+            using: .tcp
+        )
+        latencyConnection = connection
+
+        connection.stateUpdateHandler = { [weak self] state in
+            switch state {
+            case .ready:
+                let latencyMs = (CACurrentMediaTime() - startedAt) * 1000
+                self?.latencyConnection?.cancel()
+                DispatchQueue.main.async {
+                    guard let self else { return }
+                    self.latencyRequestInFlight = false
+                    self.latencyConnection = nil
+                    guard self.latencySource == source else { return }
                     self.recordLatencySample(latencyMs)
                 }
+            case .failed, .cancelled:
+                DispatchQueue.main.async {
+                    guard let self else { return }
+                    self.latencyRequestInFlight = false
+                    self.latencyConnection = nil
+                }
+            default:
+                break
             }
-        }.resume()
+        }
+
+        connection.start(queue: .global(qos: .utility))
     }
 
     private func recordLatencySample(_ latencyMs: Double) {
@@ -304,14 +322,14 @@ final class PerformanceMetricsMonitor: NSObject {
         updateLatency(ms: average)
     }
 
-    private static func latencyProbeURL(for source: TimeSource) -> URL? {
+    private static func latencyProbeEndpoint(for source: TimeSource) -> (host: String, port: UInt16)? {
         switch source {
         case .local:
             return nil
         case .taobao:
-            return URL(string: "https://www.taobao.com/")
+            return ("www.taobao.com", 443)
         case .qqMusic:
-            return URL(string: "https://c.y.qq.com/")
+            return ("c.y.qq.com", 443)
         }
     }
 }
