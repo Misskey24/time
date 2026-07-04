@@ -13,12 +13,19 @@ targets:
     platform: iOS
     sources:
       - path: Sources
+        excludes:
+          - TimeDynamicIslandExtension
+      - path: Shared
+    dependencies:
+      - target: TimeDynamicIslandExtension
+        embed: true
     info:
       path: Sources/Info.plist
       properties:
-        CFBundleDisplayName: 时间悬浮秒表
+        CFBundleDisplayName: ??????
         CFBundleShortVersionString: "1.0"
         CFBundleVersion: "1"
+        NSSupportsLiveActivities: true
         UILaunchScreen: {}
         UIRequiredDeviceCapabilities:
           - arm64
@@ -33,6 +40,28 @@ targets:
       base:
         TARGETED_DEVICE_FAMILY: "1,2"
         PRODUCT_BUNDLE_IDENTIFIER: com.example.TimeFloatingStopwatch
+        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGN_IDENTITY: ""
+        CODE_SIGNING_REQUIRED: NO
+        ENABLE_BITCODE: NO
+  TimeDynamicIslandExtension:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "16.1"
+    sources:
+      - path: Sources/TimeDynamicIslandExtension
+      - path: Shared
+    info:
+      path: Sources/TimeDynamicIslandExtension/Info.plist
+      properties:
+        CFBundleDisplayName: ?????
+        CFBundleShortVersionString: "1.0"
+        CFBundleVersion: "1"
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.TimeFloatingStopwatch.TimeDynamicIslandExtension
         CODE_SIGNING_ALLOWED: NO
         CODE_SIGN_IDENTITY: ""
         CODE_SIGNING_REQUIRED: NO

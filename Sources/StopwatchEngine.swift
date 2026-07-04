@@ -1,9 +1,9 @@
 import Foundation
 
 enum TimeSource: String, CaseIterable {
-    case local   = "本地"
-    case taobao  = "淘宝"
-    case qqMusic = "QQ音乐"
+    case local   = "??"
+    case taobao  = "??"
+    case qqMusic = "QQ??"
 }
 
 final class StopwatchEngine {
@@ -59,6 +59,10 @@ final class StopwatchEngine {
         return Date().timeIntervalSince1970 * 1000 + offsetMs
     }
 
+    func currentOffsetSeconds() -> TimeInterval {
+        offsetMs / 1000.0
+    }
+
     func formattedTime() -> String {
         let ms = currentTimeMs()
         let date = Date(timeIntervalSince1970: ms / 1000.0)
@@ -71,6 +75,18 @@ final class StopwatchEngine {
                       comps.minute ?? 0,
                       comps.second ?? 0,
                       tenths)
+    }
+
+    func formattedClockTime() -> String {
+        let ms = currentTimeMs()
+        let date = Date(timeIntervalSince1970: ms / 1000.0)
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone.current
+        let comps = calendar.dateComponents([.hour, .minute, .second], from: date)
+        return String(format: "%02d:%02d:%02d",
+                      comps.hour ?? 0,
+                      comps.minute ?? 0,
+                      comps.second ?? 0)
     }
 
     private func startAutoResync() {

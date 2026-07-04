@@ -9,6 +9,9 @@ final class ViewController: UIViewController {
     private let syncButton = UIButton(type: .system)
     private let statusLabel = UILabel()
     private let metricsLabel = UILabel()
+    private let dynamicIslandContainer = UIView()
+    private let dynamicIslandTitleLabel = UILabel()
+    private let dynamicIslandSwitch = UISwitch()
     private let pipPreview = UIView()
     private let hintLabel = UILabel()
     private var displayLink: CADisplayLink?
@@ -20,14 +23,18 @@ final class ViewController: UIViewController {
         pipRenderer.onStatus = { [weak self] msg in
             DispatchQueue.main.async { self?.statusLabel.text = msg }
         }
+        LiveActivityController.shared.onStatus = { [weak self] msg in
+            DispatchQueue.main.async { self?.statusLabel.text = msg }
+        }
         loadInitialSource()
+        LiveActivityController.shared.restoreIfNeeded()
         PerformanceMetricsMonitor.shared.start()
         startInAppTicking()
     }
 
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
-        // 页面重新渲染布局时通知 renderer 更新内部图层边界
+        // ??????????? renderer ????????
         pipRenderer.layoutDisplayLayer(in: pipPreview.bounds)
     }
 
@@ -37,7 +44,7 @@ final class ViewController: UIViewController {
     }
 
     private func buildUI() {
-        headerLabel.text = "时间悬浮秒表"
+        headerLabel.text = "??????"
         headerLabel.font = .systemFont(ofSize: 20, weight: .semibold)
         headerLabel.textColor = .white
         headerLabel.textAlignment = .center
@@ -81,7 +88,7 @@ final class ViewController: UIViewController {
         view.addSubview(metricsLabel)
 
         startButton.translatesAutoresizingMaskIntoConstraints = false
-        startButton.setTitle("启动悬浮窗", for: .normal)
+        startButton.setTitle("?????", for: .normal)
         startButton.titleLabel?.font = .systemFont(ofSize: 22, weight: .semibold)
         startButton.setTitleColor(.black, for: .normal)
         startButton.backgroundColor = UIColor(red: 0.2, green: 1.0, blue: 0.6, alpha: 1)
@@ -91,7 +98,7 @@ final class ViewController: UIViewController {
         view.addSubview(startButton)
 
         syncButton.translatesAutoresizingMaskIntoConstraints = false
-        syncButton.setTitle("重新校时", for: .normal)
+        syncButton.setTitle("????", for: .normal)
         syncButton.titleLabel?.font = .systemFont(ofSize: 16)
         syncButton.setTitleColor(.white, for: .normal)
         syncButton.layer.borderColor = UIColor.white.cgColor
@@ -100,6 +107,25 @@ final class ViewController: UIViewController {
         syncButton.contentEdgeInsets = UIEdgeInsets(top: 8, left: 18, bottom: 8, right: 18)
         syncButton.addTarget(self, action: #selector(syncTapped), for: .touchUpInside)
         view.addSubview(syncButton)
+
+        dynamicIslandContainer.translatesAutoresizingMaskIntoConstraints = false
+        dynamicIslandContainer.backgroundColor = UIColor(white: 1, alpha: 0.08)
+        dynamicIslandContainer.layer.cornerRadius = 12
+        dynamicIslandContainer.layer.borderColor = UIColor(white: 1, alpha: 0.18).cgColor
+        dynamicIslandContainer.layer.borderWidth = 1
+        view.addSubview(dynamicIslandContainer)
+
+        dynamicIslandTitleLabel.translatesAutoresizingMaskIntoConstraints = false
+        dynamicIslandTitleLabel.text = "????????"
+        dynamicIslandTitleLabel.textColor = .white
+        dynamicIslandTitleLabel.font = .systemFont(ofSize: 16, weight: .semibold)
+        dynamicIslandContainer.addSubview(dynamicIslandTitleLabel)
+
+        dynamicIslandSwitch.translatesAutoresizingMaskIntoConstraints = false
+        dynamicIslandSwitch.onTintColor = UIColor(red: 0.2, green: 1.0, blue: 0.6, alpha: 1)
+        dynamicIslandSwitch.isOn = LiveActivityController.shared.isEnabled
+        dynamicIslandSwitch.addTarget(self, action: #selector(dynamicIslandSwitchChanged), for: .valueChanged)
+        dynamicIslandContainer.addSubview(dynamicIslandSwitch)
 
         pipPreview.translatesAutoresizingMaskIntoConstraints = false
         pipPreview.backgroundColor = .black
@@ -112,9 +138,9 @@ final class ViewController: UIViewController {
         pipRenderer.containerView.translatesAutoresizingMaskIntoConstraints = false
         pipPreview.addSubview(pipRenderer.containerView)
 
-        // 【核心修复】移除了原先导致编译崩溃的错位嵌套方法名，回归标准属性平铺配置
+        // ????????????????????????????????????
         hintLabel.translatesAutoresizingMaskIntoConstraints = false
-        hintLabel.text = "↑ 这是悬浮窗预览。点上面按钮进入画中画，再切到其他 App 即可悬浮。把窗口向屏幕边缘划，可以收成侧边。"
+        hintLabel.text = "? ???????????????????????? App ??????????????????????"
         hintLabel.textColor = .gray
         hintLabel.font = .systemFont(ofSize: 12)
         hintLabel.numberOfLines = 0
@@ -148,7 +174,19 @@ final class ViewController: UIViewController {
             syncButton.topAnchor.constraint(equalTo: startButton.bottomAnchor, constant: 14),
             syncButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
 
-            pipPreview.topAnchor.constraint(equalTo: syncButton.bottomAnchor, constant: 28),
+            dynamicIslandContainer.topAnchor.constraint(equalTo: syncButton.bottomAnchor, constant: 18),
+            dynamicIslandContainer.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 24),
+            dynamicIslandContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -24),
+            dynamicIslandContainer.heightAnchor.constraint(equalToConstant: 54),
+
+            dynamicIslandTitleLabel.leadingAnchor.constraint(equalTo: dynamicIslandContainer.leadingAnchor, constant: 16),
+            dynamicIslandTitleLabel.centerYAnchor.constraint(equalTo: dynamicIslandContainer.centerYAnchor),
+
+            dynamicIslandSwitch.trailingAnchor.constraint(equalTo: dynamicIslandContainer.trailingAnchor, constant: -14),
+            dynamicIslandSwitch.centerYAnchor.constraint(equalTo: dynamicIslandContainer.centerYAnchor),
+            dynamicIslandTitleLabel.trailingAnchor.constraint(lessThanOrEqualTo: dynamicIslandSwitch.leadingAnchor, constant: -12),
+
+            pipPreview.topAnchor.constraint(equalTo: dynamicIslandContainer.bottomAnchor, constant: 22),
             pipPreview.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             pipPreview.widthAnchor.constraint(equalToConstant: 280),
             pipPreview.heightAnchor.constraint(equalToConstant: 149),
@@ -166,10 +204,13 @@ final class ViewController: UIViewController {
     }
 
     private func loadInitialSource() {
-        statusLabel.text = "正在同步 \(StopwatchEngine.shared.source.rawValue) 时间…"
+        statusLabel.text = "???? \(StopwatchEngine.shared.source.rawValue) ???"
         StopwatchEngine.shared.setSource(StopwatchEngine.shared.source) { [weak self] ok in
             let src = StopwatchEngine.shared.source.rawValue
-            self?.statusLabel.text = ok ? "已同步 \(src) 时间" : "\(src) 校时失败，使用本地时间"
+            self?.statusLabel.text = ok ? "??? \(src) ??" : "\(src) ???????????"
+            Task { @MainActor in
+                LiveActivityController.shared.refreshIfEnabled()
+            }
         }
     }
 
@@ -193,22 +234,33 @@ final class ViewController: UIViewController {
 
     @objc private func sourceChanged() {
         let new = TimeSource.allCases[sourceControl.selectedSegmentIndex]
-        statusLabel.text = "正在校时 \(new.rawValue) …"
+        statusLabel.text = "???? \(new.rawValue) ?"
         StopwatchEngine.shared.setSource(new) { [weak self] ok in
-            self?.statusLabel.text = ok ? "已同步 \(new.rawValue) 时间" : "\(new.rawValue) 校时失败"
+            self?.statusLabel.text = ok ? "??? \(new.rawValue) ??" : "\(new.rawValue) ????"
+            Task { @MainActor in
+                LiveActivityController.shared.refreshIfEnabled()
+            }
         }
     }
 
     @objc private func syncTapped() {
-        statusLabel.text = "正在重新校时…"
+        statusLabel.text = "???????"
         StopwatchEngine.shared.resync { [weak self] ok in
-            self?.statusLabel.text = ok ? "重新同步成功" : "校时失败"
+            self?.statusLabel.text = ok ? "??????" : "????"
+            Task { @MainActor in
+                LiveActivityController.shared.refreshIfEnabled()
+            }
         }
+    }
+
+    @objc private func dynamicIslandSwitchChanged() {
+        LiveActivityController.shared.setEnabled(dynamicIslandSwitch.isOn)
+        dynamicIslandSwitch.isOn = LiveActivityController.shared.isEnabled
     }
 
     @objc private func startTapped() {
         pipRenderer.startPiP()
-        statusLabel.text = "悬浮窗已启动，切到其他 App 试试"
+        statusLabel.text = "??????????? App ??"
     }
 
     private static func makeDisplayText(_ text: String) -> NSAttributedString {
