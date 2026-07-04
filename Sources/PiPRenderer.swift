@@ -76,7 +76,7 @@ final class PiPRenderer: NSObject {
     func startTicking() {
         guard displayLink == nil else { return }
 
-        let link = CADisplayLink(target: self, selector: #selector(tick))
+        let link = CADisplayLink(target: self, selector: #selector(tick(_:)))
         if #available(iOS 15.0, *) {
             let maxFPS = Float(PerformanceMetricsMonitor.maximumSupportedFrameRate)
             link.preferredFrameRateRange = CAFrameRateRange(
@@ -110,7 +110,7 @@ final class PiPRenderer: NSObject {
 
         // Feed several real frames before asking iOS to detach the layer into PiP.
         for _ in 0..<5 {
-            tick()
+            enqueueFrame()
         }
 
         startPictureInPictureWhenPossible(pip)
@@ -137,14 +137,22 @@ final class PiPRenderer: NSObject {
         }
 
         startRetryCount += 1
-        tick()
+        enqueueFrame()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self, weak pip] in
             guard let self, let pip else { return }
             self.startPictureInPictureWhenPossible(pip)
         }
     }
 
-    @objc private func tick() {
+    @objc private func tick(_ link: CADisplayLink) {
+        PerformanceMetricsMonitor.shared.recordDisplayRefresh(
+            timestamp: link.timestamp,
+            targetTimestamp: link.targetTimestamp
+        )
+        enqueueFrame()
+    }
+
+    private func enqueueFrame() {
         if displayLayer.status == .failed {
             displayLayer.flush()
         }
@@ -156,7 +164,6 @@ final class PiPRenderer: NSObject {
 
         displayLayer.enqueue(buffer)
         frameIndex += 1
-        PerformanceMetricsMonitor.shared.recordRenderedFrame(at: CACurrentMediaTime())
     }
 
     private func makeSampleBuffer() -> CMSampleBuffer? {

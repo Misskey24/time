@@ -165,6 +165,14 @@ final class PerformanceMetricsMonitor: NSObject {
 
         let interval = timestamp - lastFrameSampleTime
         lastFrameSampleTime = timestamp
+        recordRefreshInterval(interval)
+    }
+
+    func recordDisplayRefresh(timestamp: CFTimeInterval, targetTimestamp: CFTimeInterval) {
+        recordRefreshInterval(targetTimestamp - timestamp)
+    }
+
+    private func recordRefreshInterval(_ interval: CFTimeInterval) {
         guard interval > 0, interval < 1 else { return }
 
         frameIntervals.append(interval)
