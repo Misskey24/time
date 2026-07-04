@@ -32,8 +32,8 @@ struct TimeLiveActivityWidget: Widget {
                     IslandClockText(
                         clockStartDate: context.state.clockStartDate,
                         timeText: context.state.timeText,
-                        font: .system(size: 22, weight: .semibold, design: .monospaced),
-                        width: 126,
+                        font: .system(size: 21, weight: .semibold, design: .monospaced),
+                        width: 116,
                         alignment: .center
                     )
                 }
@@ -50,8 +50,8 @@ struct TimeLiveActivityWidget: Widget {
                 IslandClockText(
                     clockStartDate: context.state.clockStartDate,
                     timeText: context.state.timeText,
-                    font: .system(size: 13, weight: .semibold, design: .monospaced),
-                    width: 82,
+                    font: .system(size: 12, weight: .semibold, design: .monospaced),
+                    width: 76,
                     alignment: .trailing
                 )
             } minimal: {
@@ -81,7 +81,7 @@ private struct LockScreenTimeView: View {
                     clockStartDate: state.clockStartDate,
                     timeText: state.timeText,
                     font: .system(size: 32, weight: .semibold, design: .monospaced),
-                    width: 186,
+                    width: 178,
                     alignment: .leading
                 )
             }
@@ -112,24 +112,31 @@ private struct IslandClockText: View {
     let alignment: Alignment
 
     var body: some View {
-        clockText
-            .font(font)
-            .monospacedDigit()
-            .lineLimit(1)
-            .minimumScaleFactor(0.68)
-            .frame(width: width, alignment: alignment)
+        TimelineView(.periodic(from: clockStartDate, by: 0.1)) { timeline in
+            clockText(at: timeline.date)
+                .font(font)
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.68)
+                .frame(width: width, alignment: alignment)
+        }
     }
 
-    private var clockText: Text {
-        Text(timerInterval: clockStartDate...Date.distantFuture, countsDown: false, showsHours: true)
-            .foregroundColor(.white)
+    private func clockText(at date: Date) -> Text {
+        let value = displayParts(at: date)
+        return Text(value.body).foregroundColor(.white)
         + Text(".").foregroundColor(.white)
-        + Text(tenthText).foregroundColor(Color(red: 1.0, green: 0.25, blue: 0.18))
+        + Text(value.tenth).foregroundColor(Color(red: 1.0, green: 0.25, blue: 0.18))
     }
 
-    private var tenthText: String {
-        let components = timeText.split(separator: ":", omittingEmptySubsequences: false)
-        guard components.count >= 4, let tenth = components[3].first else { return "0" }
-        return String(tenth)
+    private func displayParts(at date: Date) -> (body: String, tenth: String) {
+        let elapsed = date.timeIntervalSince(clockStartDate)
+        let totalTenths = Int((elapsed * 10).rounded(.down))
+        let dayTenths = ((totalTenths % 864000) + 864000) % 864000
+        let hour = dayTenths / 36000
+        let minute = (dayTenths / 600) % 60
+        let second = (dayTenths / 10) % 60
+        let tenth = dayTenths % 10
+        return (String(format: "%d:%02d:%02d", hour, minute, second), String(tenth))
     }
 }

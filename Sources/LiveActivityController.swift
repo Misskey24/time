@@ -111,7 +111,7 @@ final class LiveActivityController {
 
     private func startRefreshTimer() {
         guard refreshTimer == nil else { return }
-        let timer = Timer(timeInterval: 0.2, repeats: true) { [weak self] _ in
+        let timer = Timer(timeInterval: 1.0, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 guard let self, self.isEnabled else { return }
                 guard #available(iOS 16.1, *) else { return }
