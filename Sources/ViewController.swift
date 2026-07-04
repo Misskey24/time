@@ -28,6 +28,7 @@ final class ViewController: UIViewController {
         }
         loadInitialSource()
         LiveActivityController.shared.restoreIfNeeded()
+        updateFloatingWindowAvailability()
         PerformanceMetricsMonitor.shared.start()
         startInAppTicking()
     }
@@ -254,13 +255,41 @@ final class ViewController: UIViewController {
     }
 
     @objc private func dynamicIslandSwitchChanged() {
-        LiveActivityController.shared.setEnabled(dynamicIslandSwitch.isOn)
+        if dynamicIslandSwitch.isOn {
+            pipRenderer.stopPiP()
+            LiveActivityController.shared.setEnabled(true)
+            dynamicIslandSwitch.isOn = LiveActivityController.shared.isEnabled
+            updateFloatingWindowAvailability()
+            return
+        }
+
+        LiveActivityController.shared.setEnabled(false)
         dynamicIslandSwitch.isOn = LiveActivityController.shared.isEnabled
+        updateFloatingWindowAvailability()
+        pipRenderer.startPiP()
+        statusLabel.text = "已切换为悬浮窗模式"
     }
 
     @objc private func startTapped() {
+        guard !LiveActivityController.shared.isEnabled else {
+            pipRenderer.stopPiP()
+            statusLabel.text = "灵动岛模式已开启，悬浮窗已停止"
+            updateFloatingWindowAvailability()
+            return
+        }
+
         pipRenderer.startPiP()
         statusLabel.text = "悬浮窗已启动，切到其他 App 试试"
+    }
+
+    private func updateFloatingWindowAvailability() {
+        let islandEnabled = LiveActivityController.shared.isEnabled
+        startButton.isEnabled = !islandEnabled
+        startButton.alpha = islandEnabled ? 0.45 : 1.0
+        startButton.setTitle(islandEnabled ? "灵动岛模式优先" : "启动悬浮窗", for: .normal)
+        if islandEnabled {
+            pipRenderer.stopPiP()
+        }
     }
 
     private static func makeDisplayText(_ text: String) -> NSAttributedString {
