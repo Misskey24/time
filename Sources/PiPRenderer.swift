@@ -7,6 +7,11 @@ import CoreVideo
 final class PiPRenderer: NSObject {
     let containerView = UIView()
     var onStatus: ((String) -> Void)?
+    var onDidStopPiP: (() -> Void)?
+
+    var isPictureInPictureActive: Bool {
+        pipController?.isPictureInPictureActive == true
+    }
 
     private let displayLayer = AVSampleBufferDisplayLayer()
     private var pipController: AVPictureInPictureController?
@@ -57,7 +62,7 @@ final class PiPRenderer: NSObject {
                 playbackDelegate: self
             )
             let controller = AVPictureInPictureController(contentSource: source)
-            controller.canStartPictureInPictureAutomaticallyFromInline = true
+            controller.canStartPictureInPictureAutomaticallyFromInline = false
             controller.requiresLinearPlayback = true
             controller.delegate = self
             pipController = controller
@@ -122,10 +127,17 @@ final class PiPRenderer: NSObject {
         startPiP()
     }
 
-    func stopPiP() {
+    @discardableResult
+    func stopPiP() -> Bool {
         allowsPiPStart = false
         startRetryCount = 0
-        pipController?.stopPictureInPicture()
+        let wasActive = isPictureInPictureActive
+        if wasActive {
+            pipController?.stopPictureInPicture()
+        } else {
+            stopTicking()
+        }
+        return wasActive
     }
 
     private func startPictureInPictureWhenPossible(_ pip: AVPictureInPictureController) {
@@ -424,5 +436,10 @@ extension PiPRenderer: AVPictureInPictureControllerDelegate {
 
     func pictureInPictureControllerWillStopPictureInPicture(_ pictureInPictureController: AVPictureInPictureController) {
         stopTicking()
+    }
+
+    func pictureInPictureControllerDidStopPictureInPicture(_ pictureInPictureController: AVPictureInPictureController) {
+        stopTicking()
+        onDidStopPiP?()
     }
 }

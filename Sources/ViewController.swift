@@ -15,6 +15,7 @@ final class ViewController: UIViewController {
     private let pipPreview = UIView()
     private let hintLabel = UILabel()
     private var displayLink: CADisplayLink?
+    private var pendingDynamicIslandStart = false
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -22,6 +23,16 @@ final class ViewController: UIViewController {
         buildUI()
         pipRenderer.onStatus = { [weak self] msg in
             DispatchQueue.main.async { self?.statusLabel.text = msg }
+        }
+        pipRenderer.onDidStopPiP = { [weak self] in
+            DispatchQueue.main.async {
+                guard let self, self.pendingDynamicIslandStart, self.dynamicIslandSwitch.isOn else { return }
+                self.pendingDynamicIslandStart = false
+                LiveActivityController.shared.setEnabled(true)
+                self.dynamicIslandSwitch.isOn = LiveActivityController.shared.isEnabled
+                self.updateFloatingWindowAvailability()
+                self.statusLabel.text = "已切换为灵动岛模式，悬浮窗已停止"
+            }
         }
         LiveActivityController.shared.onStatus = { [weak self] msg in
             DispatchQueue.main.async { self?.statusLabel.text = msg }
@@ -256,17 +267,24 @@ final class ViewController: UIViewController {
 
     @objc private func dynamicIslandSwitchChanged() {
         if dynamicIslandSwitch.isOn {
-            pipRenderer.stopPiP()
             startButton.isEnabled = false
             startButton.alpha = 0.45
             startButton.setTitle("灵动岛模式优先", for: .normal)
-            LiveActivityController.shared.setEnabled(true)
-            dynamicIslandSwitch.isOn = LiveActivityController.shared.isEnabled
-            updateFloatingWindowAvailability()
-            statusLabel.text = "已切换为灵动岛模式，悬浮窗已停止"
+
+            if pipRenderer.stopPiP() {
+                pendingDynamicIslandStart = true
+                statusLabel.text = "正在关闭悬浮窗，随后显示灵动岛时间"
+            } else {
+                pendingDynamicIslandStart = false
+                LiveActivityController.shared.setEnabled(true)
+                dynamicIslandSwitch.isOn = LiveActivityController.shared.isEnabled
+                updateFloatingWindowAvailability()
+                statusLabel.text = "已切换为灵动岛模式，悬浮窗已停止"
+            }
             return
         }
 
+        pendingDynamicIslandStart = false
         LiveActivityController.shared.setEnabled(false)
         dynamicIslandSwitch.isOn = LiveActivityController.shared.isEnabled
         updateFloatingWindowAvailability()
