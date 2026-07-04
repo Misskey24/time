@@ -29,8 +29,8 @@ struct TimeLiveActivityWidget: Widget {
                 }
 
                 DynamicIslandExpandedRegion(.center) {
-                    ColoredTimeText(
-                        timeText: context.state.timeText,
+                    LiveClockText(
+                        clockStartDate: context.state.clockStartDate,
                         font: .system(size: 25, weight: .semibold, design: .monospaced),
                         minWidth: 170,
                         alignment: .center
@@ -46,8 +46,8 @@ struct TimeLiveActivityWidget: Widget {
                 Image(systemName: "clock")
                     .foregroundStyle(.green)
             } compactTrailing: {
-                ColoredTimeText(
-                    timeText: context.state.timeText,
+                LiveClockText(
+                    clockStartDate: context.state.clockStartDate,
                     font: .system(size: 12, weight: .semibold, design: .monospaced),
                     minWidth: 86,
                     alignment: .trailing
@@ -75,8 +75,8 @@ private struct LockScreenTimeView: View {
                     .font(.caption)
                     .foregroundStyle(.white.opacity(0.68))
 
-                ColoredTimeText(
-                    timeText: state.timeText,
+                LiveClockText(
+                    clockStartDate: state.clockStartDate,
                     font: .system(size: 32, weight: .semibold, design: .monospaced),
                     minWidth: 212,
                     alignment: .leading
@@ -101,25 +101,19 @@ private struct LockScreenTimeView: View {
     }
 }
 
-private struct ColoredTimeText: View {
-    let timeText: String
+private struct LiveClockText: View {
+    let clockStartDate: Date
     let font: Font
     let minWidth: CGFloat
     let alignment: Alignment
 
     var body: some View {
-        coloredText
+        Text(timerInterval: DateInterval(start: clockStartDate, end: .distantFuture), countsDown: false, showsHours: true)
             .font(font)
             .monospacedDigit()
             .fixedSize(horizontal: true, vertical: false)
             .frame(minWidth: minWidth, alignment: alignment)
             .lineLimit(1)
             .minimumScaleFactor(0.65)
-    }
-
-    private var coloredText: Text {
-        guard let last = timeText.last else { return Text("") }
-        let body = String(timeText.dropLast())
-        return Text(body).foregroundColor(.white) + Text(String(last)).foregroundColor(Color(red: 1.0, green: 0.25, blue: 0.18))
     }
 }

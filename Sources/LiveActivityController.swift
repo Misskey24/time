@@ -102,7 +102,7 @@ final class LiveActivityController {
         let offsetSeconds = StopwatchEngine.shared.currentOffsetSeconds()
         return TimeLiveActivityAttributes.ContentState(
             sourceName: StopwatchEngine.shared.source.rawValue,
-            timeText: StopwatchEngine.shared.formattedTime(),
+            timeText: StopwatchEngine.shared.formattedClockTime(),
             offsetSeconds: offsetSeconds,
             clockStartDate: Self.clockStartDate(offsetSeconds: offsetSeconds),
             updatedAt: Date()
