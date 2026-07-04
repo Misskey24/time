@@ -178,9 +178,9 @@ final class ViewController: UIViewController {
         let link = CADisplayLink(target: self, selector: #selector(refreshDisplay))
         if #available(iOS 15.0, *) {
             let maxFPS = Float(PerformanceMetricsMonitor.maximumSupportedFrameRate)
-            link.preferredFrameRateRange = CAFrameRateRange(minimum: 10, maximum: maxFPS, preferred: maxFPS)
+            link.preferredFrameRateRange = CAFrameRateRange(minimum: 30, maximum: maxFPS, preferred: 0)
         } else {
-            link.preferredFramesPerSecond = PerformanceMetricsMonitor.maximumSupportedFrameRate
+            link.preferredFramesPerSecond = 0
         }
         link.add(to: .main, forMode: .common)
         displayLink = link

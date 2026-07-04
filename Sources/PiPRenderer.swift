@@ -80,12 +80,12 @@ final class PiPRenderer: NSObject {
         if #available(iOS 15.0, *) {
             let maxFPS = Float(PerformanceMetricsMonitor.maximumSupportedFrameRate)
             link.preferredFrameRateRange = CAFrameRateRange(
-                minimum: 10,
+                minimum: 30,
                 maximum: maxFPS,
-                preferred: maxFPS
+                preferred: 0
             )
         } else {
-            link.preferredFramesPerSecond = Int(frameRate)
+            link.preferredFramesPerSecond = 0
         }
         link.add(to: .main, forMode: .common)
         displayLink = link
