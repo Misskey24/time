@@ -9,6 +9,7 @@ final class LiveActivityController {
 
     private let enabledKey = "showDynamicIslandTime"
     private var refreshTimer: Timer?
+    private var lastPushedTenthKey: Int?
 
     private init() {}
 
@@ -120,7 +121,7 @@ final class LiveActivityController {
 
     private func startRefreshTimer() {
         guard refreshTimer == nil else { return }
-        let timer = Timer(timeInterval: 0.1, repeats: true) { [weak self] _ in
+        let timer = Timer(timeInterval: 0.05, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 guard let self, self.isEnabled else { return }
                 guard #available(iOS 16.1, *) else { return }
@@ -134,12 +135,23 @@ final class LiveActivityController {
     private func stopRefreshTimer() {
         refreshTimer?.invalidate()
         refreshTimer = nil
+        lastPushedTenthKey = nil
     }
 
     @available(iOS 16.1, *)
     private func updateRunningActivity() async {
+        guard shouldPushTenthUpdate() else { return }
         guard let activity = Activity<TimeLiveActivityAttributes>.activities.first else { return }
         await activity.update(using: makeContentState())
+    }
+
+    private func shouldPushTenthUpdate() -> Bool {
+        let totalTenths = Int((StopwatchEngine.shared.currentTimeMs() / 100.0).rounded(.down))
+        let tenth = ((totalTenths % 10) + 10) % 10
+        guard [1, 2, 3, 5, 7, 9].contains(tenth) else { return false }
+        guard lastPushedTenthKey != totalTenths else { return false }
+        lastPushedTenthKey = totalTenths
+        return true
     }
 
     private static func clockStartDate(offsetSeconds: TimeInterval) -> Date {
