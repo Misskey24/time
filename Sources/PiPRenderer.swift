@@ -156,6 +156,7 @@ final class PiPRenderer: NSObject {
 
         displayLayer.enqueue(buffer)
         frameIndex += 1
+        PerformanceMetricsMonitor.shared.recordRenderedFrame(at: CACurrentMediaTime())
     }
 
     private func makeSampleBuffer() -> CMSampleBuffer? {

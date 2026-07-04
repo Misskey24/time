@@ -1,5 +1,6 @@
 import Foundation
 import UIKit
+import QuartzCore
 import Darwin
 
 struct PerformanceMetricsSnapshot {
@@ -63,7 +64,8 @@ final class PerformanceMetricsMonitor: NSObject {
     }
 
     private var timer: Timer?
-    private var displayLink: CADisplayLink?
+    private var latencyTimer: Timer?
+    private var latencyRequestInFlight = false
     private var lastCounters: NetworkCounters?
     private var lastCounterDate: Date?
     private var frameCount = 0
@@ -73,7 +75,7 @@ final class PerformanceMetricsMonitor: NSObject {
         latencyMs: nil,
         downloadBytesPerSecond: 0,
         uploadBytesPerSecond: 0,
-        refreshRate: Double(UIScreen.main.maximumFramesPerSecond)
+        refreshRate: Double(min(60, max(30, UIScreen.main.maximumFramesPerSecond)))
     )
 
     private override init() {
@@ -95,17 +97,16 @@ final class PerformanceMetricsMonitor: NSObject {
         RunLoop.main.add(timer, forMode: .common)
         self.timer = timer
 
-        let link = CADisplayLink(target: self, selector: #selector(sampleRefreshRate(_:)))
-        if #available(iOS 15.0, *) {
-            let maxFPS = Float(Self.maximumSupportedFrameRate)
-            link.preferredFrameRateRange = CAFrameRateRange(
-                minimum: 10,
-                maximum: maxFPS,
-                preferred: maxFPS
-            )
-        }
-        link.add(to: .main, forMode: .common)
-        displayLink = link
+        let latencyTimer = Timer(
+            timeInterval: 2,
+            target: self,
+            selector: #selector(sampleLatency),
+            userInfo: nil,
+            repeats: true
+        )
+        RunLoop.main.add(latencyTimer, forMode: .common)
+        self.latencyTimer = latencyTimer
+        sampleLatency()
     }
 
     func updateLatency(ms: Double?) {
@@ -118,7 +119,29 @@ final class PerformanceMetricsMonitor: NSObject {
     }
 
     static var maximumSupportedFrameRate: Int {
-        max(30, UIScreen.main.maximumFramesPerSecond)
+        min(60, max(30, UIScreen.main.maximumFramesPerSecond))
+    }
+
+    func recordRenderedFrame(at timestamp: CFTimeInterval) {
+        if lastFrameSampleTime == 0 {
+            lastFrameSampleTime = timestamp
+            return
+        }
+
+        frameCount += 1
+        let elapsed = timestamp - lastFrameSampleTime
+        guard elapsed >= 1 else { return }
+
+        let measured = Double(frameCount) / elapsed
+        frameCount = 0
+        lastFrameSampleTime = timestamp
+
+        snapshot = PerformanceMetricsSnapshot(
+            latencyMs: snapshot.latencyMs,
+            downloadBytesPerSecond: snapshot.downloadBytesPerSecond,
+            uploadBytesPerSecond: snapshot.uploadBytesPerSecond,
+            refreshRate: measured
+        )
     }
 
     @objc private func sampleNetworkSpeed() {
@@ -145,28 +168,6 @@ final class PerformanceMetricsMonitor: NSObject {
             downloadBytesPerSecond: Double(receivedDelta) / interval,
             uploadBytesPerSecond: Double(sentDelta) / interval,
             refreshRate: snapshot.refreshRate
-        )
-    }
-
-    @objc private func sampleRefreshRate(_ link: CADisplayLink) {
-        if lastFrameSampleTime == 0 {
-            lastFrameSampleTime = link.timestamp
-            return
-        }
-
-        frameCount += 1
-        let elapsed = link.timestamp - lastFrameSampleTime
-        guard elapsed >= 1 else { return }
-
-        let measured = Double(frameCount) / elapsed
-        frameCount = 0
-        lastFrameSampleTime = link.timestamp
-
-        snapshot = PerformanceMetricsSnapshot(
-            latencyMs: snapshot.latencyMs,
-            downloadBytesPerSecond: snapshot.downloadBytesPerSecond,
-            uploadBytesPerSecond: snapshot.uploadBytesPerSecond,
-            refreshRate: measured
         )
     }
 
@@ -199,5 +200,42 @@ final class PerformanceMetricsMonitor: NSObject {
         }
 
         return NetworkCounters(received: received, sent: sent)
+    }
+
+    @objc private func sampleLatency() {
+        guard !latencyRequestInFlight else { return }
+        guard let url = Self.latencyProbeURL(for: StopwatchEngine.shared.source) else {
+            updateLatency(ms: 0)
+            return
+        }
+
+        latencyRequestInFlight = true
+        var request = URLRequest(url: url, timeoutInterval: 3)
+        request.httpMethod = "HEAD"
+        request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+        request.setValue("Mozilla/5.0", forHTTPHeaderField: "User-Agent")
+
+        let startedAt = CACurrentMediaTime()
+        URLSession.shared.dataTask(with: request) { [weak self] _, response, error in
+            let latencyMs = (CACurrentMediaTime() - startedAt) * 1000
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.latencyRequestInFlight = false
+                if error == nil, response != nil {
+                    self.updateLatency(ms: latencyMs)
+                }
+            }
+        }.resume()
+    }
+
+    private static func latencyProbeURL(for source: TimeSource) -> URL? {
+        switch source {
+        case .local:
+            return nil
+        case .taobao:
+            return URL(string: "https://www.taobao.com/")
+        case .qqMusic:
+            return URL(string: "https://c.y.qq.com/")
+        }
     }
 }
