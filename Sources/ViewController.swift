@@ -257,9 +257,15 @@ final class ViewController: UIViewController {
     @objc private func dynamicIslandSwitchChanged() {
         if dynamicIslandSwitch.isOn {
             pipRenderer.stopPiP()
-            LiveActivityController.shared.setEnabled(true)
-            dynamicIslandSwitch.isOn = LiveActivityController.shared.isEnabled
-            updateFloatingWindowAvailability()
+            startButton.isEnabled = false
+            startButton.alpha = 0.45
+            startButton.setTitle("灵动岛模式优先", for: .normal)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
+                guard self?.dynamicIslandSwitch.isOn == true else { return }
+                LiveActivityController.shared.setEnabled(true)
+                self?.dynamicIslandSwitch.isOn = LiveActivityController.shared.isEnabled
+                self?.updateFloatingWindowAvailability()
+            }
             return
         }
 

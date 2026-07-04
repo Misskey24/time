@@ -17,6 +17,7 @@ final class PiPRenderer: NSObject {
     }
     private var frameIndex: Int64 = 0
     private var startRetryCount = 0
+    private var allowsPiPStart = false
 
     override init() {
         super.init()
@@ -102,6 +103,7 @@ final class PiPRenderer: NSObject {
             return
         }
 
+        allowsPiPStart = true
         configureAudioSession()
         startRetryCount = 0
         frameIndex = 0
@@ -121,10 +123,14 @@ final class PiPRenderer: NSObject {
     }
 
     func stopPiP() {
+        allowsPiPStart = false
+        startRetryCount = 0
         pipController?.stopPictureInPicture()
     }
 
     private func startPictureInPictureWhenPossible(_ pip: AVPictureInPictureController) {
+        guard allowsPiPStart else { return }
+
         if pip.isPictureInPicturePossible {
             onStatus?("Starting floating window...")
             pip.startPictureInPicture()
@@ -140,6 +146,7 @@ final class PiPRenderer: NSObject {
         enqueueFrame()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self, weak pip] in
             guard let self, let pip else { return }
+            guard self.allowsPiPStart else { return }
             self.startPictureInPictureWhenPossible(pip)
         }
     }
