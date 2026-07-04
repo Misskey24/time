@@ -150,8 +150,8 @@ final class ViewController: UIViewController {
 
             pipPreview.topAnchor.constraint(equalTo: syncButton.bottomAnchor, constant: 28),
             pipPreview.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            pipPreview.widthAnchor.constraint(equalToConstant: 240),
-            pipPreview.heightAnchor.constraint(equalToConstant: 120),
+            pipPreview.widthAnchor.constraint(equalToConstant: 280),
+            pipPreview.heightAnchor.constraint(equalToConstant: 149),
 
             pipRenderer.containerView.topAnchor.constraint(equalTo: pipPreview.topAnchor),
             pipRenderer.containerView.leadingAnchor.constraint(equalTo: pipPreview.leadingAnchor),

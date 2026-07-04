@@ -16,6 +16,22 @@ struct PerformanceMetricsSnapshot {
         "延迟 \(Self.formatLatency(latencyMs))  ↓\(Self.formatBytes(downloadBytesPerSecond))  ↑\(Self.formatBytes(uploadBytesPerSecond))  \(Self.formatRefreshRate(refreshRate))"
     }
 
+    var latencyText: String {
+        Self.formatLatency(latencyMs)
+    }
+
+    var uploadText: String {
+        Self.formatBytes(uploadBytesPerSecond)
+    }
+
+    var downloadText: String {
+        Self.formatBytes(downloadBytesPerSecond)
+    }
+
+    var refreshRateText: String {
+        Self.formatRefreshRate(refreshRate)
+    }
+
     private static func formatLatency(_ value: Double?) -> String {
         guard let value else { return "-- ms" }
         return String(format: "%.0f ms", max(0, value))

@@ -11,7 +11,7 @@ final class PiPRenderer: NSObject {
     private let displayLayer = AVSampleBufferDisplayLayer()
     private var pipController: AVPictureInPictureController?
     private var displayLink: CADisplayLink?
-    private let renderSize = CGSize(width: 480, height: 240)
+    private let renderSize = CGSize(width: 730, height: 388)
     private var frameRate: Int32 {
         Int32(PerformanceMetricsMonitor.maximumSupportedFrameRate)
     }
@@ -159,10 +159,10 @@ final class PiPRenderer: NSObject {
     }
 
     private func makeSampleBuffer() -> CMSampleBuffer? {
-        let text = StopwatchEngine.shared.formattedTime()
-        let header = "\(StopwatchEngine.shared.source.rawValue) · 动态刷新"
-        let metrics = PerformanceMetricsMonitor.shared.snapshot.compactLine
-        guard let pixelBuffer = renderPixelBuffer(header: header, text: text, metrics: metrics) else { return nil }
+        let text = Self.pipTimeText(from: StopwatchEngine.shared.formattedTime())
+        let source = Self.pipSourceName(from: StopwatchEngine.shared.source.rawValue)
+        let snapshot = PerformanceMetricsMonitor.shared.snapshot
+        guard let pixelBuffer = renderPixelBuffer(source: source, text: text, snapshot: snapshot) else { return nil }
 
         var formatDescription: CMVideoFormatDescription?
         CMVideoFormatDescriptionCreateForImageBuffer(
@@ -202,7 +202,7 @@ final class PiPRenderer: NSObject {
         return sampleBuffer
     }
 
-    private func renderPixelBuffer(header: String, text: String, metrics: String? = nil) -> CVPixelBuffer? {
+    private func renderPixelBuffer(source: String, text: String, snapshot: PerformanceMetricsSnapshot) -> CVPixelBuffer? {
         let width = Int(renderSize.width)
         let height = Int(renderSize.height)
         let attrs: [CFString: Any] = [
@@ -248,31 +248,40 @@ final class PiPRenderer: NSObject {
         defer { UIGraphicsPopContext() }
 
         let rect = CGRect(x: 0, y: 0, width: width, height: height)
-        UIColor(red: 0.27, green: 0.30, blue: 0.39, alpha: 1.0).setFill()
-        UIBezierPath(roundedRect: rect, cornerRadius: 26).fill()
+        UIColor(red: 0.30, green: 0.35, blue: 0.43, alpha: 1.0).setFill()
+        UIBezierPath(roundedRect: rect, cornerRadius: 36).fill()
 
-        let headerAttrs: [NSAttributedString.Key: Any] = [
-            .font: UIFont.systemFont(ofSize: 26, weight: .medium),
-            .foregroundColor: UIColor(white: 1, alpha: 0.72)
+        let secondaryColor = UIColor(red: 0.82, green: 0.86, blue: 0.92, alpha: 1.0)
+        let topAttrs: [NSAttributedString.Key: Any] = [
+            .font: UIFont.systemFont(ofSize: 42, weight: .regular),
+            .foregroundColor: secondaryColor
         ]
         let timeAttrs: [NSAttributedString.Key: Any] = [
-            .font: UIFont.monospacedDigitSystemFont(ofSize: 74, weight: .regular),
+            .font: UIFont.monospacedDigitSystemFont(ofSize: 110, weight: .regular),
             .foregroundColor: UIColor.white
         ]
         let lastDigitAttrs: [NSAttributedString.Key: Any] = [
-            .font: UIFont.monospacedDigitSystemFont(ofSize: 74, weight: .regular),
+            .font: UIFont.monospacedDigitSystemFont(ofSize: 110, weight: .regular),
             .foregroundColor: UIColor(red: 1.0, green: 0.25, blue: 0.18, alpha: 1)
         ]
-        let metricsAttrs: [NSAttributedString.Key: Any] = [
-            .font: UIFont.monospacedDigitSystemFont(ofSize: 22, weight: .medium),
-            .foregroundColor: UIColor(white: 1, alpha: 0.82)
+        let refreshAttrs: [NSAttributedString.Key: Any] = [
+            .font: UIFont.monospacedDigitSystemFont(ofSize: 46, weight: .regular),
+            .foregroundColor: secondaryColor
+        ]
+        let speedAttrs: [NSAttributedString.Key: Any] = [
+            .font: UIFont.monospacedDigitSystemFont(ofSize: 34, weight: .regular),
+            .foregroundColor: secondaryColor
         ]
 
-        let headerNS = header as NSString
-        let headerSize = headerNS.size(withAttributes: headerAttrs)
-        headerNS.draw(
-            at: CGPoint(x: (renderSize.width - headerSize.width) / 2, y: 24),
-            withAttributes: headerAttrs
+        let horizontalPadding: CGFloat = 38
+        let latencyNS = snapshot.latencyText.replacingOccurrences(of: " ", with: "") as NSString
+        latencyNS.draw(at: CGPoint(x: horizontalPadding, y: 30), withAttributes: topAttrs)
+
+        let sourceNS = source as NSString
+        let sourceSize = sourceNS.size(withAttributes: topAttrs)
+        sourceNS.draw(
+            at: CGPoint(x: renderSize.width - horizontalPadding - sourceSize.width, y: 30),
+            withAttributes: topAttrs
         )
 
         let body = String(text.dropLast())
@@ -283,7 +292,7 @@ final class PiPRenderer: NSObject {
         let lastDigitSize = lastDigitNS.size(withAttributes: lastDigitAttrs)
         let totalWidth = bodySize.width + lastDigitSize.width
         let startX = (renderSize.width - totalWidth) / 2
-        let timeY = (renderSize.height - max(bodySize.height, lastDigitSize.height)) / 2 + 22
+        let timeY: CGFloat = 116
         bodyNS.draw(
             at: CGPoint(x: startX, y: timeY),
             withAttributes: timeAttrs
@@ -293,19 +302,40 @@ final class PiPRenderer: NSObject {
             withAttributes: lastDigitAttrs
         )
 
-        if let metrics {
-            let metricsNS = metrics as NSString
-            let maxMetricsWidth = renderSize.width - 48
-            let metricsRect = CGRect(x: 24, y: renderSize.height - 48, width: maxMetricsWidth, height: 26)
-            metricsNS.draw(
-                with: metricsRect,
-                options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine],
-                attributes: metricsAttrs,
-                context: nil
-            )
-        }
+        let refreshNS = snapshot.refreshRateText.replacingOccurrences(of: " ", with: "") as NSString
+        refreshNS.draw(at: CGPoint(x: horizontalPadding, y: 295), withAttributes: refreshAttrs)
+
+        drawRightAligned("↑ \(Self.formatPiPSpeed(snapshot.uploadBytesPerSecond))", y: 280, rightPadding: horizontalPadding, attributes: speedAttrs)
+        drawRightAligned("↓ \(Self.formatPiPSpeed(snapshot.downloadBytesPerSecond))", y: 329, rightPadding: horizontalPadding, attributes: speedAttrs)
 
         return pixelBuffer
+    }
+
+    private func drawRightAligned(_ text: String, y: CGFloat, rightPadding: CGFloat, attributes: [NSAttributedString.Key: Any]) {
+        let nsText = text as NSString
+        let size = nsText.size(withAttributes: attributes)
+        nsText.draw(
+            at: CGPoint(x: renderSize.width - rightPadding - size.width, y: y),
+            withAttributes: attributes
+        )
+    }
+
+    private static func pipTimeText(from text: String) -> String {
+        guard let lastColon = text.lastIndex(of: ":") else { return text }
+        let next = text.index(after: lastColon)
+        return String(text[..<lastColon]) + "." + String(text[next...])
+    }
+
+    private static func pipSourceName(from source: String) -> String {
+        source.replacingOccurrences(of: "QQ音乐", with: "QQ 音乐")
+    }
+
+    private static func formatPiPSpeed(_ bytesPerSecond: Double) -> String {
+        let bytes = max(0, bytesPerSecond)
+        if bytes >= 1024 * 1024 {
+            return String(format: "%.1f MB/s", bytes / 1024 / 1024)
+        }
+        return String(format: "%.0f KB/s", bytes / 1024)
     }
 }
 
