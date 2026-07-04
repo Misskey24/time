@@ -9,7 +9,6 @@ final class LiveActivityController {
 
     private let enabledKey = "showDynamicIslandTime"
     private var refreshTimer: Timer?
-    private var lastPushedTenthKey: Int?
 
     private init() {}
 
@@ -25,19 +24,12 @@ final class LiveActivityController {
 
     func restoreIfNeeded() {
         guard isEnabled else { return }
-        BackgroundAudioKeeper.shared.start()
         startOrRefresh()
     }
 
     func setEnabled(_ enabled: Bool) {
         isEnabled = enabled
-        if enabled {
-            BackgroundAudioKeeper.shared.start()
-            startOrRefresh()
-        } else {
-            BackgroundAudioKeeper.shared.stop()
-            end()
-        }
+        enabled ? startOrRefresh() : end()
     }
 
     func refreshIfEnabled() {
@@ -46,7 +38,6 @@ final class LiveActivityController {
     }
 
     func startOrRefresh() {
-        BackgroundAudioKeeper.shared.start()
         guard #available(iOS 16.1, *) else {
             onStatus?("灵动岛时间需要 iOS 16.1 或更高版本。")
             isEnabled = false
@@ -66,7 +57,6 @@ final class LiveActivityController {
     }
 
     func end() {
-        BackgroundAudioKeeper.shared.stop()
         stopRefreshTimer()
         guard #available(iOS 16.1, *) else { return }
 
@@ -112,7 +102,7 @@ final class LiveActivityController {
         let offsetSeconds = StopwatchEngine.shared.currentOffsetSeconds()
         return TimeLiveActivityAttributes.ContentState(
             sourceName: StopwatchEngine.shared.source.rawValue,
-            timeText: StopwatchEngine.shared.formattedTime(),
+            timeText: StopwatchEngine.shared.formattedClockTime(),
             offsetSeconds: offsetSeconds,
             clockStartDate: Self.clockStartDate(offsetSeconds: offsetSeconds),
             updatedAt: Date()
@@ -121,7 +111,7 @@ final class LiveActivityController {
 
     private func startRefreshTimer() {
         guard refreshTimer == nil else { return }
-        let timer = Timer(timeInterval: 0.05, repeats: true) { [weak self] _ in
+        let timer = Timer(timeInterval: 60, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 guard let self, self.isEnabled else { return }
                 guard #available(iOS 16.1, *) else { return }
@@ -135,23 +125,12 @@ final class LiveActivityController {
     private func stopRefreshTimer() {
         refreshTimer?.invalidate()
         refreshTimer = nil
-        lastPushedTenthKey = nil
     }
 
     @available(iOS 16.1, *)
     private func updateRunningActivity() async {
-        guard shouldPushTenthUpdate() else { return }
         guard let activity = Activity<TimeLiveActivityAttributes>.activities.first else { return }
         await activity.update(using: makeContentState())
-    }
-
-    private func shouldPushTenthUpdate() -> Bool {
-        let totalTenths = Int((StopwatchEngine.shared.currentTimeMs() / 100.0).rounded(.down))
-        let tenth = ((totalTenths % 10) + 10) % 10
-        guard [1, 5, 6, 8].contains(tenth) else { return false }
-        guard lastPushedTenthKey != totalTenths else { return false }
-        lastPushedTenthKey = totalTenths
-        return true
     }
 
     private static func clockStartDate(offsetSeconds: TimeInterval) -> Date {
