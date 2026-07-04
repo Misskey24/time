@@ -12,7 +12,9 @@ final class PiPRenderer: NSObject {
     private var pipController: AVPictureInPictureController?
     private var displayLink: CADisplayLink?
     private let renderSize = CGSize(width: 480, height: 240)
-    private let frameRate: Int32 = 30
+    private var frameRate: Int32 {
+        Int32(PerformanceMetricsMonitor.maximumSupportedFrameRate)
+    }
     private var frameIndex: Int64 = 0
     private var startRetryCount = 0
 
@@ -76,10 +78,11 @@ final class PiPRenderer: NSObject {
 
         let link = CADisplayLink(target: self, selector: #selector(tick))
         if #available(iOS 15.0, *) {
+            let maxFPS = Float(PerformanceMetricsMonitor.maximumSupportedFrameRate)
             link.preferredFrameRateRange = CAFrameRateRange(
-                minimum: Float(frameRate),
-                maximum: Float(frameRate),
-                preferred: Float(frameRate)
+                minimum: 10,
+                maximum: maxFPS,
+                preferred: maxFPS
             )
         } else {
             link.preferredFramesPerSecond = Int(frameRate)
@@ -157,8 +160,9 @@ final class PiPRenderer: NSObject {
 
     private func makeSampleBuffer() -> CMSampleBuffer? {
         let text = StopwatchEngine.shared.formattedTime()
-        let header = StopwatchEngine.shared.source.rawValue
-        guard let pixelBuffer = renderPixelBuffer(header: header, text: text) else { return nil }
+        let header = "\(StopwatchEngine.shared.source.rawValue) · 动态刷新"
+        let metrics = PerformanceMetricsMonitor.shared.snapshot.compactLine
+        guard let pixelBuffer = renderPixelBuffer(header: header, text: text, metrics: metrics) else { return nil }
 
         var formatDescription: CMVideoFormatDescription?
         CMVideoFormatDescriptionCreateForImageBuffer(
@@ -198,7 +202,7 @@ final class PiPRenderer: NSObject {
         return sampleBuffer
     }
 
-    private func renderPixelBuffer(header: String, text: String) -> CVPixelBuffer? {
+    private func renderPixelBuffer(header: String, text: String, metrics: String? = nil) -> CVPixelBuffer? {
         let width = Int(renderSize.width)
         let height = Int(renderSize.height)
         let attrs: [CFString: Any] = [
@@ -259,6 +263,10 @@ final class PiPRenderer: NSObject {
             .font: UIFont.monospacedDigitSystemFont(ofSize: 74, weight: .regular),
             .foregroundColor: UIColor(red: 1.0, green: 0.25, blue: 0.18, alpha: 1)
         ]
+        let metricsAttrs: [NSAttributedString.Key: Any] = [
+            .font: UIFont.monospacedDigitSystemFont(ofSize: 22, weight: .medium),
+            .foregroundColor: UIColor(white: 1, alpha: 0.82)
+        ]
 
         let headerNS = header as NSString
         let headerSize = headerNS.size(withAttributes: headerAttrs)
@@ -284,6 +292,18 @@ final class PiPRenderer: NSObject {
             at: CGPoint(x: startX + bodySize.width, y: timeY),
             withAttributes: lastDigitAttrs
         )
+
+        if let metrics {
+            let metricsNS = metrics as NSString
+            let maxMetricsWidth = renderSize.width - 48
+            let metricsRect = CGRect(x: 24, y: renderSize.height - 48, width: maxMetricsWidth, height: 26)
+            metricsNS.draw(
+                with: metricsRect,
+                options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine],
+                attributes: metricsAttrs,
+                context: nil
+            )
+        }
 
         return pixelBuffer
     }

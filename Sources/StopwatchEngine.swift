@@ -29,15 +29,17 @@ final class StopwatchEngine {
         if s == .local {
             offsetMs = 0
             lastSyncedAt = Date()
+            PerformanceMetricsMonitor.shared.updateLatency(ms: 0)
             completion?(true)
             return
         }
-        TimeSourceManager.fetchServerTimeMs(source: s) { [weak self] serverMs in
+        TimeSourceManager.fetchServerTime(source: s) { [weak self] result in
             guard let self = self else { return }
-            if let serverMs = serverMs {
+            if let result {
                 let localMs = Date().timeIntervalSince1970 * 1000
-                self.offsetMs = serverMs - localMs
+                self.offsetMs = result.timestampMs - localMs
                 self.lastSyncedAt = Date()
+                PerformanceMetricsMonitor.shared.updateLatency(ms: result.latencyMs)
                 completion?(true)
             } else {
                 completion?(false)

@@ -8,6 +8,7 @@ final class ViewController: UIViewController {
     private let startButton = UIButton(type: .system)
     private let syncButton = UIButton(type: .system)
     private let statusLabel = UILabel()
+    private let metricsLabel = UILabel()
     private let pipPreview = UIView()
     private let hintLabel = UILabel()
     private var displayLink: CADisplayLink?
@@ -20,6 +21,7 @@ final class ViewController: UIViewController {
             DispatchQueue.main.async { self?.statusLabel.text = msg }
         }
         loadInitialSource()
+        PerformanceMetricsMonitor.shared.start()
         startInAppTicking()
     }
 
@@ -67,6 +69,16 @@ final class ViewController: UIViewController {
         statusLabel.textAlignment = .center
         statusLabel.numberOfLines = 2
         view.addSubview(statusLabel)
+
+        metricsLabel.translatesAutoresizingMaskIntoConstraints = false
+        metricsLabel.textColor = UIColor(white: 1, alpha: 0.82)
+        metricsLabel.font = .monospacedDigitSystemFont(ofSize: 13, weight: .medium)
+        metricsLabel.textAlignment = .center
+        metricsLabel.numberOfLines = 2
+        metricsLabel.adjustsFontSizeToFitWidth = true
+        metricsLabel.minimumScaleFactor = 0.75
+        metricsLabel.text = PerformanceMetricsMonitor.shared.snapshot.displayLine
+        view.addSubview(metricsLabel)
 
         startButton.translatesAutoresizingMaskIntoConstraints = false
         startButton.setTitle("启动悬浮窗", for: .normal)
@@ -126,7 +138,11 @@ final class ViewController: UIViewController {
             statusLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
             statusLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
 
-            startButton.topAnchor.constraint(equalTo: statusLabel.bottomAnchor, constant: 24),
+            metricsLabel.topAnchor.constraint(equalTo: statusLabel.bottomAnchor, constant: 10),
+            metricsLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+            metricsLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+
+            startButton.topAnchor.constraint(equalTo: metricsLabel.bottomAnchor, constant: 20),
             startButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
 
             syncButton.topAnchor.constraint(equalTo: startButton.bottomAnchor, constant: 14),
@@ -161,9 +177,10 @@ final class ViewController: UIViewController {
         displayLink?.invalidate()
         let link = CADisplayLink(target: self, selector: #selector(refreshDisplay))
         if #available(iOS 15.0, *) {
-            link.preferredFrameRateRange = CAFrameRateRange(minimum: 10, maximum: 30, preferred: 15)
+            let maxFPS = Float(PerformanceMetricsMonitor.maximumSupportedFrameRate)
+            link.preferredFrameRateRange = CAFrameRateRange(minimum: 10, maximum: maxFPS, preferred: maxFPS)
         } else {
-            link.preferredFramesPerSecond = 15
+            link.preferredFramesPerSecond = PerformanceMetricsMonitor.maximumSupportedFrameRate
         }
         link.add(to: .main, forMode: .common)
         displayLink = link
@@ -171,6 +188,7 @@ final class ViewController: UIViewController {
 
     @objc private func refreshDisplay() {
         displayLabel.attributedText = Self.makeDisplayText(StopwatchEngine.shared.formattedTime())
+        metricsLabel.text = PerformanceMetricsMonitor.shared.snapshot.displayLine
     }
 
     @objc private func sourceChanged() {

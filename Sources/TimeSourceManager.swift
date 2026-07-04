@@ -1,6 +1,11 @@
 import Foundation
 
 enum TimeSourceManager {
+    struct ServerTimeResult {
+        let timestampMs: Double
+        let latencyMs: Double?
+    }
+
     private static let httpDateFormatter: DateFormatter = {
         let fmt = DateFormatter()
         fmt.locale = Locale(identifier: "en_US_POSIX")
@@ -9,10 +14,10 @@ enum TimeSourceManager {
         return fmt
     }()
 
-    static func fetchServerTimeMs(source: TimeSource, completion: @escaping (Double?) -> Void) {
+    static func fetchServerTime(source: TimeSource, completion: @escaping (ServerTimeResult?) -> Void) {
         switch source {
         case .local:
-            completion(Date().timeIntervalSince1970 * 1000)
+            completion(ServerTimeResult(timestampMs: Date().timeIntervalSince1970 * 1000, latencyMs: 0))
         case .taobao:
             fetchTaobao(completion: completion)
         case .qqMusic:
@@ -20,25 +25,31 @@ enum TimeSourceManager {
         }
     }
 
-    private static func fetchTaobao(completion: @escaping (Double?) -> Void) {
+    static func fetchServerTimeMs(source: TimeSource, completion: @escaping (Double?) -> Void) {
+        fetchServerTime(source: source) { result in
+            completion(result?.timestampMs)
+        }
+    }
+
+    private static func fetchTaobao(completion: @escaping (ServerTimeResult?) -> Void) {
         let jsonURLs = [
             "https://api.m.taobao.com/rest/api3.do?api=mtop.common.getTimestamp",
             "http://api.m.taobao.com/rest/api3.do?api=mtop.common.getTimestamp",
             "https://acs.m.taobao.com/gw/mtop.common.getTimestamp/1.0/?api=mtop.common.getTimestamp"
         ]
-        Self.fetchTaobaoJSON(urlStrings: jsonURLs) { ms in
-            if let ms {
-                DispatchQueue.main.async { completion(ms) }
+        Self.fetchTaobaoJSON(urlStrings: jsonURLs) { result in
+            if let result {
+                DispatchQueue.main.async { completion(result) }
                 return
             }
 
-            Self.fetchHTTPDate(urlString: "https://www.taobao.com/") { dateMs in
-                DispatchQueue.main.async { completion(dateMs) }
+            Self.fetchHTTPDate(urlString: "https://www.taobao.com/") { result in
+                DispatchQueue.main.async { completion(result) }
             }
         }
     }
 
-    private static func fetchTaobaoJSON(urlStrings: [String], completion: @escaping (Double?) -> Void) {
+    private static func fetchTaobaoJSON(urlStrings: [String], completion: @escaping (ServerTimeResult?) -> Void) {
         guard let first = urlStrings.first, let url = URL(string: first) else {
             completion(nil)
             return
@@ -49,20 +60,22 @@ enum TimeSourceManager {
         req.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15", forHTTPHeaderField: "User-Agent")
         req.setValue("application/json,text/plain,*/*", forHTTPHeaderField: "Accept")
 
+        let sendAt = Date()
         URLSession.shared.dataTask(with: req) { data, _, _ in
             if let data,
                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let dict = json["data"] as? [String: Any],
                let t = dict["t"] as? String,
                let ms = Double(t) {
-                completion(ms)
+                let rttMs = Date().timeIntervalSince(sendAt) * 1000
+                completion(ServerTimeResult(timestampMs: ms + rttMs / 2, latencyMs: rttMs))
             } else {
                 Self.fetchTaobaoJSON(urlStrings: Array(urlStrings.dropFirst()), completion: completion)
             }
         }.resume()
     }
 
-    private static func fetchHTTPDate(urlString: String, completion: @escaping (Double?) -> Void) {
+    private static func fetchHTTPDate(urlString: String, completion: @escaping (ServerTimeResult?) -> Void) {
         guard let url = URL(string: urlString) else {
             completion(nil)
             return
@@ -84,11 +97,11 @@ enum TimeSourceManager {
 
             let rtt = Date().timeIntervalSince(sendAt)
             let serverMs = date.timeIntervalSince1970 * 1000 + (rtt * 1000) / 2
-            completion(serverMs)
+            completion(ServerTimeResult(timestampMs: serverMs, latencyMs: rtt * 1000))
         }.resume()
     }
 
-    private static func fetchQQMusic(completion: @escaping (Double?) -> Void) {
+    private static func fetchQQMusic(completion: @escaping (ServerTimeResult?) -> Void) {
         guard let url = URL(string: "https://c.y.qq.com/") else {
             DispatchQueue.main.async { completion(nil) }; return
         }
@@ -108,7 +121,9 @@ enum TimeSourceManager {
             }
             let rtt = Date().timeIntervalSince(sendAt)
             let serverMs = date.timeIntervalSince1970 * 1000 + (rtt * 1000) / 2
-            DispatchQueue.main.async { completion(serverMs) }
+            DispatchQueue.main.async {
+                completion(ServerTimeResult(timestampMs: serverMs, latencyMs: rtt * 1000))
+            }
         }.resume()
     }
 }
