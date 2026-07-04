@@ -29,8 +29,8 @@ struct TimeLiveActivityWidget: Widget {
                 }
 
                 DynamicIslandExpandedRegion(.center) {
-                    HybridTimeText(
-                        state: context.state,
+                    ColoredTimeText(
+                        timeText: context.state.timeText,
                         font: .system(size: 25, weight: .semibold, design: .monospaced),
                         minWidth: 170,
                         alignment: .center
@@ -46,10 +46,10 @@ struct TimeLiveActivityWidget: Widget {
                 Image(systemName: "clock")
                     .foregroundStyle(.green)
             } compactTrailing: {
-                HybridTimeText(
-                    state: context.state,
+                ColoredTimeText(
+                    timeText: context.state.timeText,
                     font: .system(size: 12, weight: .semibold, design: .monospaced),
-                    minWidth: 84,
+                    minWidth: 86,
                     alignment: .trailing
                 )
             } minimal: {
@@ -75,8 +75,8 @@ private struct LockScreenTimeView: View {
                     .font(.caption)
                     .foregroundStyle(.white.opacity(0.68))
 
-                HybridTimeText(
-                    state: state,
+                ColoredTimeText(
+                    timeText: state.timeText,
                     font: .system(size: 32, weight: .semibold, design: .monospaced),
                     minWidth: 212,
                     alignment: .leading
@@ -101,24 +101,14 @@ private struct LockScreenTimeView: View {
     }
 }
 
-private struct HybridTimeText: View {
-    let state: TimeLiveActivityAttributes.ContentState
+private struct ColoredTimeText: View {
+    let timeText: String
     let font: Font
     let minWidth: CGFloat
     let alignment: Alignment
 
     var body: some View {
-        HStack(spacing: 0) {
-            Text(
-                timerInterval: state.clockStartDate...state.clockStartDate.addingTimeInterval(24 * 60 * 60),
-                countsDown: false,
-                showsHours: true
-            )
-            Text(":")
-                .foregroundStyle(.white)
-            Text(lastDigit)
-                .foregroundStyle(Color(red: 1.0, green: 0.25, blue: 0.18))
-        }
+        coloredText
             .font(font)
             .monospacedDigit()
             .fixedSize(horizontal: true, vertical: false)
@@ -127,7 +117,9 @@ private struct HybridTimeText: View {
             .minimumScaleFactor(0.65)
     }
 
-    private var lastDigit: String {
-        state.timeText.last.map(String.init) ?? "0"
+    private var coloredText: Text {
+        guard let last = timeText.last else { return Text("") }
+        let body = String(timeText.dropLast())
+        return Text(body).foregroundColor(.white) + Text(String(last)).foregroundColor(Color(red: 1.0, green: 0.25, blue: 0.18))
     }
 }
