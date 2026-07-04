@@ -108,7 +108,7 @@ private struct LiveClockText: View {
     let alignment: Alignment
 
     var body: some View {
-        Text(timerInterval: DateInterval(start: clockStartDate, end: .distantFuture), countsDown: false, showsHours: true)
+        Text(timerInterval: clockStartDate...Date.distantFuture, countsDown: false, showsHours: true)
             .font(font)
             .monospacedDigit()
             .fixedSize(horizontal: true, vertical: false)
