@@ -112,31 +112,24 @@ private struct IslandClockText: View {
     let alignment: Alignment
 
     var body: some View {
-        TimelineView(.periodic(from: clockStartDate, by: 0.1)) { timeline in
-            clockText(at: timeline.date)
-                .font(font)
-                .monospacedDigit()
-                .lineLimit(1)
-                .minimumScaleFactor(0.68)
-                .frame(width: width, alignment: alignment)
-        }
+        clockText
+            .font(font)
+            .monospacedDigit()
+            .lineLimit(1)
+            .minimumScaleFactor(0.68)
+            .frame(width: width, alignment: alignment)
     }
 
-    private func clockText(at date: Date) -> Text {
-        let value = displayParts(at: date)
-        return Text(value.body).foregroundColor(.white)
+    private var clockText: Text {
+        Text(timerInterval: clockStartDate...Date.distantFuture, countsDown: false, showsHours: true)
+            .foregroundColor(.white)
         + Text(".").foregroundColor(.white)
-        + Text(value.tenth).foregroundColor(Color(red: 1.0, green: 0.25, blue: 0.18))
+        + Text(tenthText).foregroundColor(Color(red: 1.0, green: 0.25, blue: 0.18))
     }
 
-    private func displayParts(at date: Date) -> (body: String, tenth: String) {
-        let elapsed = date.timeIntervalSince(clockStartDate)
-        let totalTenths = Int((elapsed * 10).rounded(.down))
-        let dayTenths = ((totalTenths % 864000) + 864000) % 864000
-        let hour = dayTenths / 36000
-        let minute = (dayTenths / 600) % 60
-        let second = (dayTenths / 10) % 60
-        let tenth = dayTenths % 10
-        return (String(format: "%d:%02d:%02d", hour, minute, second), String(tenth))
+    private var tenthText: String {
+        let components = timeText.split(separator: ":", omittingEmptySubsequences: false)
+        guard components.count >= 4, let tenth = components[3].first else { return "0" }
+        return String(tenth)
     }
 }

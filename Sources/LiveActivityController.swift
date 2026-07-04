@@ -24,12 +24,19 @@ final class LiveActivityController {
 
     func restoreIfNeeded() {
         guard isEnabled else { return }
+        BackgroundAudioKeeper.shared.start()
         startOrRefresh()
     }
 
     func setEnabled(_ enabled: Bool) {
         isEnabled = enabled
-        enabled ? startOrRefresh() : end()
+        if enabled {
+            BackgroundAudioKeeper.shared.start()
+            startOrRefresh()
+        } else {
+            BackgroundAudioKeeper.shared.stop()
+            end()
+        }
     }
 
     func refreshIfEnabled() {
@@ -38,6 +45,7 @@ final class LiveActivityController {
     }
 
     func startOrRefresh() {
+        BackgroundAudioKeeper.shared.start()
         guard #available(iOS 16.1, *) else {
             onStatus?("灵动岛时间需要 iOS 16.1 或更高版本。")
             isEnabled = false
@@ -57,6 +65,7 @@ final class LiveActivityController {
     }
 
     func end() {
+        BackgroundAudioKeeper.shared.stop()
         stopRefreshTimer()
         guard #available(iOS 16.1, *) else { return }
 
@@ -111,7 +120,7 @@ final class LiveActivityController {
 
     private func startRefreshTimer() {
         guard refreshTimer == nil else { return }
-        let timer = Timer(timeInterval: 1.0, repeats: true) { [weak self] _ in
+        let timer = Timer(timeInterval: 0.1, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 guard let self, self.isEnabled else { return }
                 guard #available(iOS 16.1, *) else { return }
